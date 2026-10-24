@@ -20,9 +20,12 @@ CREATE TABLE accounts (
         DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY(customer_id)
-        REFERENCES customes(customer_id)
-        ON DELETE RESTRICT
+        REFERENCES customers(customer_id)
+        ON DELETE RESTRICT,
 
     CONSTRAINT balance_non_negative
         CHECK (balance >= 0)
 );
+
+CREATE INDEX idx_accounts_customer
+ON accounts(customer_id);

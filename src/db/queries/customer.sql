@@ -18,7 +18,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('CUSTOMER', 'ADMIN')
         DEFAULT 'CUSTOMER',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
     FOREIGN KEY(customer_id)
         REFERENCES customers(customer_id)
