@@ -25,4 +25,4 @@ CREATE TABLE accounts (
 
     CONSTRAINT balance_non_negative
         CHECK (balance >= 0)
-)
+);
