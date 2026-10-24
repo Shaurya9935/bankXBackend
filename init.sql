@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS accounts (
         CHECK (balance >= 0)
 );
 
-CREATE INDEX idx_accounts_customer
-ON accounts(customer_id);
+-- CREATE INDEX idx_accounts_customer
+-- ON accounts(customer_id);
 
 -- Transactions table
 CREATE TABLE IF NOT EXISTS transactions (
@@ -90,11 +90,11 @@ CREATE TABLE IF NOT EXISTS transactions (
         CHECK (amount > 0)
 );
 
-CREATE INDEX idx_transactions_from
-ON transactions(from_account_id);
+-- CREATE INDEX idx_transactions_from
+-- ON transactions(from_account_id);
 
-CREATE INDEX idx_transactions_to
-ON transactions(to_account_id);
+-- CREATE INDEX idx_transactions_to
+-- ON transactions(to_account_id);
 
-CREATE INDEX idx_transactions_date
-ON transactions(created_at);
+-- CREATE INDEX idx_transactions_date
+-- ON transactions(created_at);
