@@ -53,6 +53,10 @@ docker compose up -d mysql
 > The database credentials in `docker-compose.yml` are development defaults.
 > Use environment-specific secrets before deploying this project.
 
+### VS Code Database Connection
+
+If using VS Code with the [SQLTools](https://marketplace.visualstudio.com/items?itemName=mtxr.sqltools) extension and its MySQL driver, a pre-configured connection named **bankX** is provided in [`.vscode/settings.json`](./.vscode/settings.json) connecting to `localhost:3306` (`root` / `root`).
+
 Install Node.js dependencies with:
 
 ```bash
