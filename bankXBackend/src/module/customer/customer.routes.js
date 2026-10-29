@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { authenticate, requireRole } from "../../common/middleware/auth.middleware.js";
+import * as controller from "./customer.controller.js";
+const router = Router();
+router.use(authenticate);
+router.get("/me", controller.me);
+router.patch("/me", controller.updateMe);
+router.get("/", requireRole("ADMIN"), controller.list);
+router.get("/:customerId", requireRole("ADMIN"), controller.get);
+export default router;

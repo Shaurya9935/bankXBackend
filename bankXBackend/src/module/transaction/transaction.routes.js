@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { authenticate } from "../../common/middleware/auth.middleware.js";
+import { validate, positiveAmount } from "../../common/middleware/validate.middleware.js";
+import * as controller from "./transaction.controller.js";
+const router = Router();
+router.use(authenticate);
+router.get("/", controller.list);
+router.post("/deposit", validate({ to_account_id: { required: true }, amount: { required: true, validate: positiveAmount } }), controller.deposit);
+router.post("/withdraw", validate({ from_account_id: { required: true }, amount: { required: true, validate: positiveAmount } }), controller.withdraw);
+router.post("/transfer", validate({ from_account_id: { required: true }, to_account_id: { required: true }, amount: { required: true, validate: positiveAmount } }), controller.transfer);
+export default router;
