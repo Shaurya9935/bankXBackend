@@ -46,6 +46,27 @@ const validateRegister = (req, res, next) => {
     
 }
 
+
+const validateLogin = (req, res, next) => {
+    try {
+        const { email, password } = req.body;
+
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+        if (!email || !emailRegex.test(email.trim().toLowerCase())) {
+            throw ApiError.invalid("Please provide a valid Email");
+        }
+
+        if (!password || password.length < 8) {
+            throw ApiError.invalid("Please Provide a valid password");
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
 export default{
-    validateRegister
+    validateRegister,
+    validateLogin
 }

@@ -9,7 +9,10 @@ const findUserByEmail = async (email) => {
             u.role,
             c.full_name,
             c.email,
-            c.phone
+            c.phone,
+            c.address,
+            c.date_of_birth,
+            c.created_at
         FROM users u
         INNER JOIN customers c 
             ON u.customer_id = c.customer_id

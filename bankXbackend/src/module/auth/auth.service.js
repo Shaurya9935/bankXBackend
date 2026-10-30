@@ -87,6 +87,61 @@ const register = async (userData) => {
     }
 };
 
+const login = async (userData) => {
+    // 1. Extract email and password
+    const email = userData.email;
+    const password = userData.password;
+
+    // 2. Normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 3. Find user using findUserByEmail()
+    const user = await authRepository.findUserByEmail(normalizedEmail);
+
+    // 4. If user doesn't exist, throw 401
+    if (!user) {
+        throw ApiError.unauthorized("Invalid email or password");
+    }
+
+    // 5. Compare entered password with password_hash using bcrypt.compare()
+    const isPasswordValid = await bcrypt.compare(
+        password,
+        user.password_hash
+    );
+
+    // 6. If password doesn't match, throw 401
+    if (!isPasswordValid) {
+        throw ApiError.unauthorized("Invalid email or password");
+    }
+
+    // 7. Generate JWT
+    const token = generateToken({
+        userId: user.user_id,
+        customerId: user.customer_id,
+        role: user.role
+    });
+
+    // 8. Return safe user details and token matching frontend AuthData
+    return {
+        token,
+        user: {
+            user_id: user.user_id,
+            customer_id: user.customer_id,
+            role: user.role
+        },
+        customer: {
+            customer_id: user.customer_id,
+            full_name: user.full_name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address || null,
+            date_of_birth: user.date_of_birth || null,
+            created_at: user.created_at
+        }
+    };
+};
+
 export default {
-    register
+    register,
+    login
 };
