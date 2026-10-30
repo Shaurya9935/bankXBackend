@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 
+import authRoutes from "./module/auth/auth.routes.js";
+
 const app = express();
 
 app.use(helmet());
@@ -19,5 +21,7 @@ app.get("/health", (req, res) => {
         message: "BankX API is running"
     });
 });
+
+app.use("/api/auth", authRoutes);
 
 export default app;

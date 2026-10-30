@@ -25,6 +25,10 @@ class ApiError extends Error {
     static notFound(message = "Not Found"){
         return new ApiError(414, message)
     }
+
+    static invalid(message = "Invalid"){
+        return new ApiError(422, message)
+    }
 }
 
 export default ApiError;
