@@ -4,7 +4,8 @@ dotenv.config();
 
 const env = {
     PORT: process.env.PORT || 5000,
-    JWT_SECRET: process.env.JWT_SECRET
+    JWT_SECRET: process.env.JWT_SECRET,
+    NODE_ENV: process.env.NODE_ENV || "development"
 };
 
 export default env;
