@@ -1,4 +1,5 @@
 import accountService from "./account.service.js";
+import transactionService from "../transaction/transaction.service.js";
 
 const createAccount = async (req, res, next) => {
     try {
@@ -56,7 +57,7 @@ const deposit = async (req, res, next) => {
         const customerId = req.user.customerId;
         const { amount, description } = req.body;
 
-        const result = await accountService.deposit(accountId, customerId, {
+        const result = await transactionService.deposit(accountId, customerId, {
             amount,
             description
         });
