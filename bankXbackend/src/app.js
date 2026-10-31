@@ -4,6 +4,10 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import authRoutes from "./module/auth/auth.routes.js";
+import customerRoutes from "./module/customer/customer.routes.js";
+import accountRoutes from "./module/account/account.routes.js";
+import transactionRoutes from "./module/transaction/transaction.routes.js";
+import errorHandler from "./common/middleware/error.middleware.js";
 
 const app = express();
 
@@ -23,5 +27,10 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/accounts", accountRoutes);
+app.use("/api/transactions", transactionRoutes);
+
+app.use(errorHandler);
 
 export default app;

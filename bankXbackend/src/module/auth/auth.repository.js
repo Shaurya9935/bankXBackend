@@ -62,9 +62,31 @@ const findUserByPhone = async (phone) => {
     return rows[0] || null;
 };
 
+const findUserById = async (userId) => {
+    const [rows] = await pool.execute(
+        `SELECT
+            u.user_id,
+            u.customer_id,
+            u.role,
+            c.full_name,
+            c.email,
+            c.phone,
+            c.address,
+            c.date_of_birth,
+            c.created_at
+        FROM users u
+        INNER JOIN customers c 
+            ON u.customer_id = c.customer_id
+        WHERE u.user_id = ?`,
+        [userId]
+    );
+    return rows[0] || null;
+};
+
 export default{
     findUserByEmail,
     createCustomer,
     createUser,
-    findUserByPhone
+    findUserByPhone,
+    findUserById
 }

@@ -141,7 +141,34 @@ const login = async (userData) => {
     };
 };
 
+const getMe = async (userId) => {
+    const user = await authRepository.findUserById(userId);
+
+    if (!user) {
+        throw ApiError.notFound("User not found");
+    }
+
+    return {
+        user: {
+            user_id: user.user_id,
+            customer_id: user.customer_id,
+            role: user.role
+        },
+        customer: {
+            customer_id: user.customer_id,
+            full_name: user.full_name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address || null,
+            date_of_birth: user.date_of_birth || null,
+            created_at: user.created_at
+        }
+    };
+};
+
+
 export default {
     register,
-    login
+    login,
+    getMe
 };

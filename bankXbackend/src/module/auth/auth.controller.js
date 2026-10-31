@@ -30,7 +30,24 @@ const login = async (req, res, next) => {
     }
 };
 
+const getCurrentUser = async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
+
+        const result = await authService.getMe(userId);
+
+        return res.status(200).json({
+            success: true,
+            message: "User retrieved successfully",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     register,
-    login
+    login,
+    getCurrentUser
 };

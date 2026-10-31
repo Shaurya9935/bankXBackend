@@ -1,22 +1,139 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Link, Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Bell, CheckCircle2, ChevronRight, CircleDollarSign, CreditCard, FileText, LayoutDashboard, LogOut, Menu, Plus, Receipt, ShieldCheck, UserRound, WalletCards, X } from "lucide-react";
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Bell,
+  CheckCircle2,
+  ChevronRight,
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plus,
+  Receipt,
+  ShieldCheck,
+  UserRound,
+  WalletCards,
+  X,
+} from "lucide-react";
 import { accountApi, apiError, customerApi, transactionApi } from "./api";
 import { useAuth } from "./auth";
 import type { Account, Transaction } from "./types";
 
-const money = (value: string | number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(value));
-const date = (value: string) => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-const shortDate = (value: string) => new Intl.DateTimeFormat("en-IN", { month: "short", day: "numeric" }).format(new Date(value));
-const label = (value: string) => value === "WITHDRAWL" ? "Withdrawal" : value.charAt(0) + value.slice(1).toLowerCase();
+const money = (value: string | number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+const date = (value: string) =>
+  new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+const shortDate = (value: string) =>
+  new Intl.DateTimeFormat("en-IN", { month: "short", day: "numeric" }).format(
+    new Date(value),
+  );
+const label = (value: string) =>
+  value === "WITHDRAWL"
+    ? "Withdrawal"
+    : value.charAt(0) + value.slice(1).toLowerCase();
 
 function Shell({ children }: { children: ReactNode }) {
   const { customer, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const initial = customer?.full_name?.charAt(0).toUpperCase() || "U";
-  return <div className="app-shell"><aside className={open ? "sidebar open" : "sidebar"}><div className="brand-lockup sidebar-brand"><div className="brand-mark small">B<span>X</span></div><strong>BankX</strong><button className="icon-button mobile-only" onClick={close} aria-label="Close navigation"><X size={20} /></button></div><nav><NavLink to="/dashboard" onClick={close}><LayoutDashboard size={18} />Overview</NavLink><NavLink to="/accounts" onClick={close}><WalletCards size={18} />Accounts</NavLink><NavLink to="/transactions" onClick={close}><Receipt size={18} />Transactions</NavLink><NavLink to="/profile" onClick={close}><UserRound size={18} />Profile</NavLink></nav><div className="sidebar-bottom"><div className="security-note"><ShieldCheck size={17} /><span>Protected banking<br /><small>JWT session active</small></span></div><button className="logout" onClick={logout}><LogOut size={17} />Sign out</button></div></aside><div className="main-area"><header className="topbar"><button className="icon-button mobile-only" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><div className="breadcrumbs">Personal banking <span>/</span> {customer?.full_name || "Workspace"}</div><div className="top-actions"><Bell size={19} color="#667085" /><div className="avatar">{initial}</div></div></header><main className="content">{children}</main></div></div>;
+  return (
+    <div className="app-shell">
+      <aside className={open ? "sidebar open" : "sidebar"}>
+        <div className="brand-lockup sidebar-brand">
+          <div className="brand-mark small">
+            B<span>X</span>
+          </div>
+          <strong>BankX</strong>
+          <button
+            className="icon-button mobile-only"
+            onClick={close}
+            aria-label="Close navigation"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <nav>
+          <NavLink to="/dashboard" onClick={close}>
+            <LayoutDashboard size={18} />
+            Overview
+          </NavLink>
+          <NavLink to="/accounts" onClick={close}>
+            <WalletCards size={18} />
+            Accounts
+          </NavLink>
+          <NavLink to="/transactions" onClick={close}>
+            <Receipt size={18} />
+            Transactions
+          </NavLink>
+          <NavLink to="/profile" onClick={close}>
+            <UserRound size={18} />
+            Profile
+          </NavLink>
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="security-note">
+            <ShieldCheck size={17} />
+            <span>
+              Protected banking
+              <br />
+              <small>JWT session active</small>
+            </span>
+          </div>
+          <button className="logout" onClick={logout}>
+            <LogOut size={17} />
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <div className="main-area">
+        <header className="topbar">
+          <button
+            className="icon-button mobile-only"
+            onClick={() => setOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu size={21} />
+          </button>
+          <div className="breadcrumbs">
+            Personal banking <span>/</span> {customer?.full_name || "Workspace"}
+          </div>
+          <div className="top-actions">
+            <Bell size={19} color="#667085" />
+            <div className="avatar">{initial}</div>
+          </div>
+        </header>
+        <main className="content">{children}</main>
+      </div>
+    </div>
+  );
 }
 
 function Dashboard() {
@@ -24,67 +141,804 @@ function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => { void Promise.all([accountApi.list(), transactionApi.list()]).then(([accountsResponse, transactionsResponse]) => { setAccounts(accountsResponse.data.data); setTransactions(transactionsResponse.data.data); }).catch((requestError) => setError(apiError(requestError))); }, []);
-  const total = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
-  const chartData = [...transactions].slice(0, 8).reverse().map((transaction) => ({ date: shortDate(transaction.created_at), amount: Number(transaction.amount) }));
-  return <><PageHeader eyebrow="OVERVIEW" title={`Good morning, ${customer?.full_name?.split(" ")[0] || "there"}.`} subtitle="Here is your verified financial snapshot." action={<Link className="button primary" to="/deposit"><Plus size={17} />New transaction</Link>} />{error && <Alert>{error}</Alert>}<div className="summary-grid"><SummaryCard navy label="Total balance" value={money(total)} note={`Across ${accounts.length} account${accounts.length === 1 ? "" : "s"}`} /><SummaryCard label="Accounts" value={String(accounts.length).padStart(2, "0")} note="Linked banking accounts" /><SummaryCard label="Activity" value={String(transactions.length).padStart(2, "0")} note="Recorded transactions" /></div><div className="dashboard-grid"><section className="panel chart-panel"><PanelHeading eyebrow="ACTIVITY" title="Transaction activity" /><div className="chart-wrap">{chartData.length ? <ResponsiveContainer width="100%" height={230}><AreaChart data={chartData}><defs><linearGradient id="activityFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#2457d6" stopOpacity={.25} /><stop offset="100%" stopColor="#2457d6" stopOpacity={0} /></linearGradient></defs><XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#8992a2" }} /><YAxis hide /><Tooltip formatter={(value) => money(Number(value))} /><Area type="monotone" dataKey="amount" stroke="#2457d6" strokeWidth={2} fill="url(#activityFill)" /></AreaChart></ResponsiveContainer> : <EmptyState title="No activity yet" text="Completed transactions will appear in this chart." />}</div></section><section className="panel"><PanelHeading eyebrow="QUICK ACTIONS" title="Move money securely" /><div className="quick-actions"><QuickAction to="/deposit" icon={<ArrowDownLeft size={19} />} title="Deposit" text="Add money to an account" /><QuickAction to="/withdraw" icon={<ArrowUpRight size={19} />} title="Withdraw" text="Take money out" /><QuickAction to="/transfer" icon={<ArrowLeftRight size={19} />} title="Transfer" text="Move funds between accounts" /><QuickAction to="/transactions" icon={<FileText size={19} />} title="History" text="Review all activity" /></div></section></div><section className="panel"><PanelHeading eyebrow="LATEST ACTIVITY" title="Recent transactions" action={<Link className="text-link" to="/transactions">View history <ChevronRight size={15} /></Link>} />{transactions.length ? <TransactionList transactions={transactions.slice(0, 5)} /> : <EmptyState title="No transactions yet" text="Your confirmed transactions will appear here." />}</section></>;
+  useEffect(() => {
+    void Promise.all([accountApi.list(), transactionApi.list()])
+      .then(([accountsResponse, transactionsResponse]) => {
+        setAccounts(accountsResponse.data.data);
+        setTransactions(transactionsResponse.data.data);
+      })
+      .catch((requestError) => setError(apiError(requestError)));
+  }, []);
+  const total = accounts.reduce(
+    (sum, account) => sum + Number(account.balance),
+    0,
+  );
+  const chartData = [...transactions]
+    .slice(0, 8)
+    .reverse()
+    .map((transaction) => ({
+      date: shortDate(transaction.created_at),
+      amount: Number(transaction.amount),
+    }));
+  return (
+    <>
+      <PageHeader
+        eyebrow="OVERVIEW"
+        title={`Good morning, ${customer?.full_name?.split(" ")[0] || "there"}.`}
+        subtitle="Here is your verified financial snapshot."
+        action={
+          <Link className="button primary" to="/deposit">
+            <Plus size={17} />
+            New transaction
+          </Link>
+        }
+      />
+      {error && <Alert>{error}</Alert>}
+      <div className="summary-grid">
+        <SummaryCard
+          navy
+          label="Total balance"
+          value={money(total)}
+          note={`Across ${accounts.length} account${accounts.length === 1 ? "" : "s"}`}
+        />
+        <SummaryCard
+          label="Accounts"
+          value={String(accounts.length).padStart(2, "0")}
+          note="Linked banking accounts"
+        />
+        <SummaryCard
+          label="Activity"
+          value={String(transactions.length).padStart(2, "0")}
+          note="Recorded transactions"
+        />
+      </div>
+      <div className="dashboard-grid">
+        <section className="panel chart-panel">
+          <PanelHeading eyebrow="ACTIVITY" title="Transaction activity" />
+          <div className="chart-wrap">
+            {chartData.length ? (
+              <ResponsiveContainer width="100%" height={230}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient
+                      id="activityFill"
+                      x1="0"
+                      x2="0"
+                      y1="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#2457d6"
+                        stopOpacity={0.25}
+                      />
+                      <stop offset="100%" stopColor="#2457d6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: "#8992a2" }}
+                  />
+                  <YAxis hide />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#2457d6"
+                    strokeWidth={2}
+                    fill="url(#activityFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState
+                title="No activity yet"
+                text="Completed transactions will appear in this chart."
+              />
+            )}
+          </div>
+        </section>
+        <section className="panel">
+          <PanelHeading eyebrow="QUICK ACTIONS" title="Move money securely" />
+          <div className="quick-actions">
+            <QuickAction
+              to="/deposit"
+              icon={<ArrowDownLeft size={19} />}
+              title="Deposit"
+              text="Add money to an account"
+            />
+            <QuickAction
+              to="/withdraw"
+              icon={<ArrowUpRight size={19} />}
+              title="Withdraw"
+              text="Take money out"
+            />
+            <QuickAction
+              to="/transfer"
+              icon={<ArrowLeftRight size={19} />}
+              title="Transfer"
+              text="Move funds between accounts"
+            />
+            <QuickAction
+              to="/transactions"
+              icon={<FileText size={19} />}
+              title="History"
+              text="Review all activity"
+            />
+          </div>
+        </section>
+      </div>
+      <section className="panel">
+        <PanelHeading
+          eyebrow="LATEST ACTIVITY"
+          title="Recent transactions"
+          action={
+            <Link className="text-link" to="/transactions">
+              View history <ChevronRight size={15} />
+            </Link>
+          }
+        />
+        {transactions.length ? (
+          <TransactionList transactions={transactions.slice(0, 5)} />
+        ) : (
+          <EmptyState
+            title="No transactions yet"
+            text="Your confirmed transactions will appear here."
+          />
+        )}
+      </section>
+    </>
+  );
 }
 
 function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = () => { void accountApi.list().then((response) => setAccounts(response.data.data)).catch((requestError) => setError(apiError(requestError))); };
+  const load = () => {
+    void accountApi
+      .list()
+      .then((response) => setAccounts(response.data.data))
+      .catch((requestError) => setError(apiError(requestError)));
+  };
   useEffect(load, []);
-  const create = async () => { setBusy(true); setError(""); try { await accountApi.create("SAVINGS"); load(); } catch (requestError) { setError(apiError(requestError)); } finally { setBusy(false); } };
-  return <><PageHeader eyebrow="ACCOUNTS" title="Your accounts" subtitle="View balances and account status returned by the BankX API." action={<button className="button primary" onClick={create} disabled={busy}><Plus size={17} />{busy ? "Creating..." : "Open savings account"}</button>} />{error && <Alert>{error}</Alert>}<div className="account-grid">{accounts.map((account) => <AccountCard account={account} key={account.account_id} />)}</div>{!accounts.length && !error && <EmptyState title="No accounts found" text="Open a savings account to get started." />}</>;
+  const create = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await accountApi.create("SAVINGS");
+      load();
+    } catch (requestError) {
+      setError(apiError(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <PageHeader
+        eyebrow="ACCOUNTS"
+        title="Your accounts"
+        subtitle="View balances and account status returned by the BankX API."
+        action={
+          <button className="button primary" onClick={create} disabled={busy}>
+            <Plus size={17} />
+            {busy ? "Creating..." : "Open savings account"}
+          </button>
+        }
+      />
+      {error && <Alert>{error}</Alert>}
+      <div className="account-grid">
+        {accounts.map((account) => (
+          <AccountCard account={account} key={account.account_id} />
+        ))}
+      </div>
+      {!accounts.length && !error && (
+        <EmptyState
+          title="No accounts found"
+          text="Open a savings account to get started."
+        />
+      )}
+    </>
+  );
 }
 
 function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  useEffect(() => { void transactionApi.list().then((response) => setTransactions(response.data.data)).catch((requestError) => setError(apiError(requestError))); }, []);
-  const filtered = transactions.filter((transaction) => `${transaction.transaction_type} ${transaction.description || ""} ${transaction.transactions_id}`.toLowerCase().includes(query.toLowerCase()));
-  return <><PageHeader eyebrow="ACTIVITY" title="Transaction history" subtitle="Every result below comes directly from the backend." /><section className="panel"><div className="toolbar"><div className="search"><FileText size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search transactions" /></div><span className="muted small">{filtered.length} result{filtered.length === 1 ? "" : "s"}</span></div>{error && <Alert>{error}</Alert>}{filtered.length ? <TransactionTable transactions={filtered} /> : <EmptyState title="No matching transactions" text="Try another search or complete a transaction first." />}</section></>;
+  useEffect(() => {
+    void transactionApi
+      .list()
+      .then((response) => setTransactions(response.data.data))
+      .catch((requestError) => setError(apiError(requestError)));
+  }, []);
+  const filtered = transactions.filter((transaction) =>
+    `${transaction.transaction_type} ${transaction.description || ""} ${transaction.transactions_id}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <>
+      <PageHeader
+        eyebrow="ACTIVITY"
+        title="Transaction history"
+        subtitle="Every result below comes directly from the backend."
+      />
+      <section className="panel">
+        <div className="toolbar">
+          <div className="search">
+            <FileText size={16} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search transactions"
+            />
+          </div>
+          <span className="muted small">
+            {filtered.length} result{filtered.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {error && <Alert>{error}</Alert>}
+        {filtered.length ? (
+          <TransactionTable transactions={filtered} />
+        ) : (
+          <EmptyState
+            title="No matching transactions"
+            text="Try another search or complete a transaction first."
+          />
+        )}
+      </section>
+    </>
+  );
 }
 
-function MoneyOperation({ type }: { type: "deposit" | "withdraw" | "transfer" }) {
+function MoneyOperation({
+  type,
+}: {
+  type: "deposit" | "withdraw" | "transfer";
+}) {
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [form, setForm] = useState({ from: "", to: "", amount: "", description: "" });
+  const [form, setForm] = useState({
+    from: "",
+    to: "",
+    amount: "",
+    description: "",
+  });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void accountApi.list().then((response) => { const data = response.data.data; setAccounts(data); if (type === "deposit") setForm((current) => ({ ...current, to: String(data[0]?.account_id || "") })); else setForm((current) => ({ ...current, from: String(data[0]?.account_id || "") })); }).catch((requestError) => setError(apiError(requestError))); }, [type]);
+  useEffect(() => {
+    void accountApi
+      .list()
+      .then((response) => {
+        const data = response.data.data;
+        setAccounts(data);
+        if (type === "deposit")
+          setForm((current) => ({
+            ...current,
+            to: String(data[0]?.account_id || ""),
+          }));
+        else
+          setForm((current) => ({
+            ...current,
+            from: String(data[0]?.account_id || ""),
+          }));
+      })
+      .catch((requestError) => setError(apiError(requestError)));
+  }, [type]);
   const title = type.charAt(0).toUpperCase() + type.slice(1);
-  const submit = async (event: FormEvent) => { event.preventDefault(); setError(""); setSuccess(""); const amount = Number(form.amount); if (!Number.isFinite(amount) || amount <= 0 || !/^\d+(\.\d{1,2})?$/.test(form.amount)) { setError("Enter a positive amount with up to two decimal places."); return; } if (type === "transfer" && form.from === form.to) { setError("Source and destination accounts must differ."); return; } if (!window.confirm(`Confirm ${type} of ${money(form.amount)}?`)) return; setBusy(true); try { const payload = { amount: form.amount, description: form.description || undefined }; if (type === "deposit") await transactionApi.deposit({ ...payload, to_account_id: Number(form.to) }); if (type === "withdraw") await transactionApi.withdraw({ ...payload, from_account_id: Number(form.from) }); if (type === "transfer") await transactionApi.transfer({ ...payload, from_account_id: Number(form.from), to_account_id: Number(form.to) }); const [accountResponse] = await Promise.all([accountApi.list(), transactionApi.list()]); setAccounts(accountResponse.data.data); setSuccess(`${title} completed successfully.`); setForm((current) => ({ ...current, amount: "", description: "" })); } catch (requestError) { setError(apiError(requestError)); } finally { setBusy(false); } };
-  const sourceAccounts = accounts.filter((account) => account.status === "ACTIVE");
-  return <><PageHeader eyebrow="MONEY MOVEMENT" title={title} subtitle={`Submit a ${type} through the authenticated BankX transaction API.`} /><div className="form-layout"><section className="panel operation-panel"><div className="operation-icon"><CircleDollarSign size={22} /></div><h2>{title} money</h2><p className="muted">The backend validates ownership, balances, and transaction integrity before confirming the result.</p><form className="form" onSubmit={submit}>{type !== "deposit" && <Select label="Source account" value={form.from} onChange={(value) => setForm({ ...form, from: value })} options={sourceAccounts} placeholder="Select source account" />}{type !== "withdraw" && <Select label={type === "transfer" ? "Destination account" : "Account to credit"} value={form.to} onChange={(value) => setForm({ ...form, to: value })} options={sourceAccounts} placeholder="Select destination account" />}<Field label="Amount"><input inputMode="decimal" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="0.00" required /></Field><Field label="Description (optional)"><input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength={255} placeholder="What is this for?" /></Field>{error && <Alert>{error}</Alert>}{success && <div className="alert success"><CheckCircle2 size={16} />{success}</div>}<button className="button primary wide" disabled={busy || !accounts.length}>{busy ? "Submitting..." : `Review ${type}`}<ChevronRight size={17} /></button></form></section><aside className="panel operation-aside"><ShieldCheck size={24} color="#2457d6" /><h3>Secure transaction flow</h3><p>Account selection and amount are sent to the backend. A successful response is required before the UI reports completion.</p><div className="aside-rule" /><span className="muted small">Never share your password or token.</span></aside></div><button className="back-link" onClick={() => navigate("/dashboard")}><ArrowLeftRight size={15} />Back to dashboard</button></>;
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    const amount = Number(form.amount);
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0 ||
+      !/^\d+(\.\d{1,2})?$/.test(form.amount)
+    ) {
+      setError("Enter a positive amount with up to two decimal places.");
+      return;
+    }
+    if (type === "transfer" && form.from === form.to) {
+      setError("Source and destination accounts must differ.");
+      return;
+    }
+    if (!window.confirm(`Confirm ${type} of ${money(form.amount)}?`)) return;
+    setBusy(true);
+    try {
+      const payload = {
+        amount: form.amount,
+        description: form.description || undefined,
+      };
+      if (type === "deposit")
+        await transactionApi.deposit({
+          ...payload,
+          to_account_id: Number(form.to),
+        });
+      if (type === "withdraw")
+        await transactionApi.withdraw({
+          ...payload,
+          from_account_id: Number(form.from),
+        });
+      if (type === "transfer")
+        await transactionApi.transfer({
+          ...payload,
+          from_account_id: Number(form.from),
+          to_account_id: Number(form.to),
+        });
+      const [accountResponse] = await Promise.all([
+        accountApi.list(),
+        transactionApi.list(),
+      ]);
+      setAccounts(accountResponse.data.data);
+      setSuccess(`${title} completed successfully.`);
+      setForm((current) => ({ ...current, amount: "", description: "" }));
+    } catch (requestError) {
+      setError(apiError(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const sourceAccounts = accounts.filter(
+    (account) => account.status === "ACTIVE",
+  );
+  return (
+    <>
+      <PageHeader
+        eyebrow="MONEY MOVEMENT"
+        title={title}
+        subtitle={`Submit a ${type} through the authenticated BankX transaction API.`}
+      />
+      <div className="form-layout">
+        <section className="panel operation-panel">
+          <div className="operation-icon">
+            <CircleDollarSign size={22} />
+          </div>
+          <h2>{title} money</h2>
+          <p className="muted">
+            The backend validates ownership, balances, and transaction integrity
+            before confirming the result.
+          </p>
+          <form className="form" onSubmit={submit}>
+            {type !== "deposit" && (
+              <Select
+                label="Source account"
+                value={form.from}
+                onChange={(value) => setForm({ ...form, from: value })}
+                options={sourceAccounts}
+                placeholder="Select source account"
+              />
+            )}
+            {type !== "withdraw" && (
+              <Select
+                label={
+                  type === "transfer"
+                    ? "Destination account"
+                    : "Account to credit"
+                }
+                value={form.to}
+                onChange={(value) => setForm({ ...form, to: value })}
+                options={sourceAccounts}
+                placeholder="Select destination account"
+              />
+            )}
+            <Field label="Amount">
+              <input
+                inputMode="decimal"
+                value={form.amount}
+                onChange={(event) =>
+                  setForm({ ...form, amount: event.target.value })
+                }
+                placeholder="0.00"
+                required
+              />
+            </Field>
+            <Field label="Description (optional)">
+              <input
+                value={form.description}
+                onChange={(event) =>
+                  setForm({ ...form, description: event.target.value })
+                }
+                maxLength={255}
+                placeholder="What is this for?"
+              />
+            </Field>
+            {error && <Alert>{error}</Alert>}
+            {success && (
+              <div className="alert success">
+                <CheckCircle2 size={16} />
+                {success}
+              </div>
+            )}
+            <button
+              className="button primary wide"
+              disabled={busy || !accounts.length}
+            >
+              {busy ? "Submitting..." : `Review ${type}`}
+              <ChevronRight size={17} />
+            </button>
+          </form>
+        </section>
+        <aside className="panel operation-aside">
+          <ShieldCheck size={24} color="#2457d6" />
+          <h3>Secure transaction flow</h3>
+          <p>
+            Account selection and amount are sent to the backend. A successful
+            response is required before the UI reports completion.
+          </p>
+          <div className="aside-rule" />
+          <span className="muted small">
+            Never share your password or token.
+          </span>
+        </aside>
+      </div>
+      <button className="back-link" onClick={() => navigate("/dashboard")}>
+        <ArrowLeftRight size={15} />
+        Back to dashboard
+      </button>
+    </>
+  );
 }
 
 function Profile() {
   const { customer } = useAuth();
-  const [form, setForm] = useState({ full_name: customer?.full_name || "", email: customer?.email || "", phone: customer?.phone || "", address: customer?.address || "", date_of_birth: customer?.date_of_birth || "" });
-  const [message, setMessage] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  useEffect(() => { if (customer) setForm({ full_name: customer.full_name, email: customer.email, phone: customer.phone, address: customer.address || "", date_of_birth: customer.date_of_birth || "" }); }, [customer]);
-  const submit = async (event: FormEvent) => { event.preventDefault(); setMessage(""); setError(""); setBusy(true); try { await customerApi.update(form); setMessage("Profile updated successfully."); } catch (requestError) { setError(apiError(requestError)); } finally { setBusy(false); } };
-  return <><PageHeader eyebrow="PROFILE" title="Your profile" subtitle="Update the customer fields supported by the backend." /><section className="panel profile-panel"><div className="profile-header"><div className="avatar large">{customer?.full_name.charAt(0).toUpperCase()}</div><div><h2>{customer?.full_name}</h2><p className="muted">Customer ID #{customer?.customer_id}</p></div></div><form className="profile-form" onSubmit={submit}><Field label="Full name"><input value={form.full_name} onChange={(event) => setForm({ ...form, full_name: event.target.value })} required /></Field><Field label="Email"><input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></Field><Field label="Phone"><input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} required /></Field><Field label="Date of birth"><input type="date" value={form.date_of_birth?.slice(0, 10)} onChange={(event) => setForm({ ...form, date_of_birth: event.target.value })} /></Field><Field label="Address"><input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></Field><div className="profile-actions">{error && <Alert>{error}</Alert>}{message && <div className="alert success"><CheckCircle2 size={16} />{message}</div>}<button className="button primary" disabled={busy}>{busy ? "Saving..." : "Save changes"}</button></div></form></section></>;
+  const [form, setForm] = useState({
+    full_name: customer?.full_name || "",
+    email: customer?.email || "",
+    phone: customer?.phone || "",
+    address: customer?.address || "",
+    date_of_birth: customer?.date_of_birth || "",
+  });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (customer)
+      setForm({
+        full_name: customer.full_name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address || "",
+        date_of_birth: customer.date_of_birth || "",
+      });
+  }, [customer]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    setBusy(true);
+    try {
+      await customerApi.update(form);
+      setMessage("Profile updated successfully.");
+    } catch (requestError) {
+      setError(apiError(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <PageHeader
+        eyebrow="PROFILE"
+        title="Your profile"
+        subtitle="Update the customer fields supported by the backend."
+      />
+      <section className="panel profile-panel">
+        <div className="profile-header">
+          <div className="avatar large">
+            {customer?.full_name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h2>{customer?.full_name}</h2>
+            <p className="muted">Customer ID #{customer?.customer_id}</p>
+          </div>
+        </div>
+        <form className="profile-form" onSubmit={submit}>
+          <Field label="Full name">
+            <input
+              value={form.full_name}
+              onChange={(event) =>
+                setForm({ ...form, full_name: event.target.value })
+              }
+              required
+            />
+          </Field>
+          <Field label="Email">
+            <input
+              type="email"
+              value={form.email}
+              onChange={(event) =>
+                setForm({ ...form, email: event.target.value })
+              }
+              required
+            />
+          </Field>
+          <Field label="Phone">
+            <input
+              value={form.phone}
+              onChange={(event) =>
+                setForm({ ...form, phone: event.target.value })
+              }
+              required
+            />
+          </Field>
+          <Field label="Date of birth">
+            <input
+              type="date"
+              value={form.date_of_birth?.slice(0, 10)}
+              onChange={(event) =>
+                setForm({ ...form, date_of_birth: event.target.value })
+              }
+            />
+          </Field>
+          <Field label="Address">
+            <input
+              value={form.address}
+              onChange={(event) =>
+                setForm({ ...form, address: event.target.value })
+              }
+            />
+          </Field>
+          <div className="profile-actions">
+            {error && <Alert>{error}</Alert>}
+            {message && (
+              <div className="alert success">
+                <CheckCircle2 size={16} />
+                {message}
+              </div>
+            )}
+            <button className="button primary" disabled={busy}>
+              {busy ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </section>
+    </>
+  );
 }
 
-function App() { return <Shell><Routes><Route path="/dashboard" element={<Dashboard />} /><Route path="/accounts" element={<Accounts />} /><Route path="/transactions" element={<Transactions />} /><Route path="/deposit" element={<MoneyOperation type="deposit" />} /><Route path="/withdraw" element={<MoneyOperation type="withdraw" />} /><Route path="/transfer" element={<MoneyOperation type="transfer" />} /><Route path="/profile" element={<Profile />} /><Route path="*" element={<Navigate to="/dashboard" replace />} /></Routes></Shell>; }
+function App() {
+  return (
+    <Shell>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/accounts" element={<Accounts />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/deposit" element={<MoneyOperation type="deposit" />} />
+        <Route path="/withdraw" element={<MoneyOperation type="withdraw" />} />
+        <Route path="/transfer" element={<MoneyOperation type="transfer" />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Shell>
+  );
+}
 
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="field-label">{label}{children}</label>; }
-function Select({ label, value, onChange, options, placeholder }: { label: string; value: string; onChange: (value: string) => void; options: Account[]; placeholder: string }) { return <Field label={label}><select value={value} onChange={(event) => onChange(event.target.value)} required><option value="">{placeholder}</option>{options.map((account) => <option value={account.account_id} key={account.account_id}>{account.account_type} · •••• {account.account_number?.slice(-4)} · {money(account.balance)}</option>)}</select></Field>; }
-function Alert({ children }: { children: ReactNode }) { return <div className="alert error">{children}</div>; }
-function SummaryCard({ label, value, note, navy = false }: { label: string; value: string; note: string; navy?: boolean }) { return <div className={`summary-card ${navy ? "navy" : ""}`}><span className="card-label">{label}{navy && <span className="live-dot" />}</span><strong>{value}</strong><small>{note}</small></div>; }
-function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow: string; title: string; subtitle: string; action?: ReactNode }) { return <div className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="muted">{subtitle}</p></div>{action}</div>; }
-function PanelHeading({ eyebrow, title, action }: { eyebrow: string; title: string; action?: ReactNode }) { return <div className="panel-heading"><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2></div>{action}</div>; }
-function QuickAction({ to, icon, title, text }: { to: string; icon: ReactNode; title: string; text: string }) { return <Link className="quick-action" to={to}><span>{icon}</span><div><strong>{title}</strong><small>{text}</small></div><ChevronRight size={16} /></Link>; }
-function AccountCard({ account }: { account: Account }) { return <article className="account-card"><div className="account-card-top"><div className="account-icon"><CreditCard size={20} /></div><Status value={account.status} /></div><p className="eyebrow">{account.account_type} ACCOUNT</p><h2>{money(account.balance)}</h2><span className="muted">•••• •••• •••• {account.account_number?.slice(-4) || "—"}</span><div className="card-foot"><span>Opened {shortDate(account.created_at)}</span><span>#{account.account_id}</span></div></article>; }
-function TransactionList({ transactions }: { transactions: Transaction[] }) { return <div className="transactions">{transactions.map((transaction) => <div className="transaction-row" key={transaction.transactions_id}><div className={`transaction-icon ${transaction.status.toLowerCase()}`}>{transaction.transaction_type === "TRANSFER" ? <ArrowLeftRight size={17} /> : transaction.transaction_type === "DEPOSIT" ? <ArrowDownLeft size={17} /> : <ArrowUpRight size={17} />}</div><div className="transaction-main"><strong>{label(transaction.transaction_type)}</strong><span>{transaction.description || "BankX transaction"} · #{transaction.transactions_id}</span></div><div className="transaction-meta"><strong>{money(transaction.amount)}</strong><span>{shortDate(transaction.created_at)}</span></div><Status value={transaction.status} /></div>)}</div>; }
-function TransactionTable({ transactions }: { transactions: Transaction[] }) { return <div className="transaction-table"><div className="table-head"><span>Transaction</span><span>Type</span><span>Amount</span><span>Status</span><span>Date</span></div>{transactions.map((transaction) => <div className="table-row" key={transaction.transactions_id}><span className="transaction-id">#{transaction.transactions_id}</span><span>{label(transaction.transaction_type)}</span><strong>{money(transaction.amount)}</strong><Status value={transaction.status} /><span>{date(transaction.created_at)}</span></div>)}</div>; }
-function Status({ value }: { value: string }) { return <span className={`status ${value.toLowerCase()}`}>{value === "WITHDRAWL" ? "Withdrawal" : value}</span>; }
-function EmptyState({ title, text }: { title: string; text: string }) { return <div className="empty"><div className="empty-icon"><Receipt size={20} /></div><strong>{title}</strong><span>{text}</span></div>; }
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="field-label">
+      {label}
+      {children}
+    </label>
+  );
+}
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Account[];
+  placeholder: string;
+}) {
+  return (
+    <Field label={label}>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+      >
+        <option value="">{placeholder}</option>
+        {options.map((account) => (
+          <option value={account.account_id} key={account.account_id}>
+            {account.account_type} · •••• {account.account_number?.slice(-4)} ·{" "}
+            {money(account.balance)}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+}
+function Alert({ children }: { children: ReactNode }) {
+  return <div className="alert error">{children}</div>;
+}
+function SummaryCard({
+  label,
+  value,
+  note,
+  navy = false,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  navy?: boolean;
+}) {
+  return (
+    <div className={`summary-card ${navy ? "navy" : ""}`}>
+      <span className="card-label">
+        {label}
+        {navy && <span className="live-dot" />}
+      </span>
+      <strong>{value}</strong>
+      <small>{note}</small>
+    </div>
+  );
+}
+function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="page-header">
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h1>{title}</h1>
+        <p className="muted">{subtitle}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+function PanelHeading({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="panel-heading">
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+function QuickAction({
+  to,
+  icon,
+  title,
+  text,
+}: {
+  to: string;
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <Link className="quick-action" to={to}>
+      <span>{icon}</span>
+      <div>
+        <strong>{title}</strong>
+        <small>{text}</small>
+      </div>
+      <ChevronRight size={16} />
+    </Link>
+  );
+}
+function AccountCard({ account }: { account: Account }) {
+  return (
+    <article className="account-card">
+      <div className="account-card-top">
+        <div className="account-icon">
+          <CreditCard size={20} />
+        </div>
+        <Status value={account.status} />
+      </div>
+      <p className="eyebrow">{account.account_type} ACCOUNT</p>
+      <h2>{money(account.balance)}</h2>
+      <span className="muted">
+        •••• •••• •••• {account.account_number?.slice(-4) || "—"}
+      </span>
+      <div className="card-foot">
+        <span>Opened {shortDate(account.created_at)}</span>
+        <span>#{account.account_id}</span>
+      </div>
+    </article>
+  );
+}
+function TransactionList({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <div className="transactions">
+      {transactions.map((transaction) => (
+        <div className="transaction-row" key={transaction.transactions_id}>
+          <div
+            className={`transaction-icon ${transaction.status.toLowerCase()}`}
+          >
+            {transaction.transaction_type === "TRANSFER" ? (
+              <ArrowLeftRight size={17} />
+            ) : transaction.transaction_type === "DEPOSIT" ? (
+              <ArrowDownLeft size={17} />
+            ) : (
+              <ArrowUpRight size={17} />
+            )}
+          </div>
+          <div className="transaction-main">
+            <strong>{label(transaction.transaction_type)}</strong>
+            <span>
+              {transaction.description || "BankX transaction"} · #
+              {transaction.transactions_id}
+            </span>
+          </div>
+          <div className="transaction-meta">
+            <strong>{money(transaction.amount)}</strong>
+            <span>{shortDate(transaction.created_at)}</span>
+          </div>
+          <Status value={transaction.status} />
+        </div>
+      ))}
+    </div>
+  );
+}
+function TransactionTable({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <div className="transaction-table">
+      <div className="table-head">
+        <span>Transaction</span>
+        <span>Type</span>
+        <span>Amount</span>
+        <span>Status</span>
+        <span>Date</span>
+      </div>
+      {transactions.map((transaction) => (
+        <div className="table-row" key={transaction.transactions_id}>
+          <span className="transaction-id">#{transaction.transactions_id}</span>
+          <span>{label(transaction.transaction_type)}</span>
+          <strong>{money(transaction.amount)}</strong>
+          <Status value={transaction.status} />
+          <span>{date(transaction.created_at)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+function Status({ value }: { value: string }) {
+  return (
+    <span className={`status ${value.toLowerCase()}`}>
+      {value === "WITHDRAWL" ? "Withdrawal" : value}
+    </span>
+  );
+}
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="empty">
+      <div className="empty-icon">
+        <Receipt size={20} />
+      </div>
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
 
 export default App;

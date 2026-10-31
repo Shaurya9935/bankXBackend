@@ -1,4 +1,5 @@
 import ApiError from "../../common/utils/api-error.js";
+import { verifyToken as decodeToken } from "../../common/utils/jwt.js";
 
 const validateRegister = (req, res, next) => {
     try{
@@ -66,7 +67,45 @@ const validateLogin = (req, res, next) => {
         next(error);
     }
 };
-export default{
+
+const verifyToken = (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            throw ApiError.unauthorized("Access denied. No token provided");
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        if (!token) {
+            throw ApiError.unauthorized("Access denied. No token provided");
+        }
+
+        try {
+            const decoded = decodeToken(token);
+            req.user = {
+                ...decoded,
+                userId: decoded.userId || decoded.user_id,
+                user_id: decoded.userId || decoded.user_id,
+                customerId: decoded.customerId || decoded.customer_id,
+                customer_id: decoded.customerId || decoded.customer_id
+            };
+            next();
+        } catch (jwtError) {
+            if (jwtError.name === "TokenExpiredError") {
+                throw ApiError.unauthorized("Token has expired. Please log in again");
+            }
+            throw ApiError.unauthorized("Invalid token");
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+export default {
     validateRegister,
-    validateLogin
-}
+    validateLogin,
+    verifyToken,
+    authenticate: verifyToken
+};
