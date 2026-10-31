@@ -115,11 +115,36 @@ const transfer = async (req, res, next) => {
     }
 };
 
+const getAccountTransactions = async (req, res, next) => {
+    try {
+        const accountId = req.params.accountId;
+        const customerId = req.user.customerId;
+        const { limit, offset, page } = req.query;
+
+        const options = {};
+        if (limit) {
+            options.limit = parseInt(limit, 10);
+            options.offset = offset ? parseInt(offset, 10) : page ? (parseInt(page, 10) - 1) * options.limit : 0;
+        }
+
+        const result = await transactionService.getAccountTransactions(accountId, customerId, options);
+
+        return res.status(200).json({
+            success: true,
+            message: "Transactions retrieved successfully",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     createAccount,
     getMyAccounts,
     getMyAccount,
     deposit,
     withdraw,
-    transfer
+    transfer,
+    getAccountTransactions
 };

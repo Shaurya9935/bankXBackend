@@ -237,10 +237,28 @@ const transfer = async (fromAccountId, customerId, transferData) => {
     }
 };
 
+const getAccountTransactions = async (accountId, customerId, options = {}) => {
+    if (!accountId) {
+        throw ApiError.badRequest("Account identifier is required");
+    }
+
+    // 1. Verify the account belongs to the logged-in customer
+    const account = await transactionRepository.findAccountByIdAndCustomer(accountId, customerId);
+    if (!account) {
+        throw ApiError.notFound("Account not found");
+    }
+
+    // 2. Fetch transactions where account is sender or recipient, sorted newest first
+    const transactions = await transactionRepository.findTransactionsByAccountId(account.account_id, options);
+
+    return transactions;
+};
+
 export default {
     deposit,
     withdraw,
     transfer,
-    getTransactions
+    getTransactions,
+    getAccountTransactions
 };
 

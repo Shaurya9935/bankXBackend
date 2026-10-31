@@ -134,6 +134,33 @@ const findTransactionsByCustomerId = async (customerId) => {
     return rows;
 };
 
+const findTransactionsByAccountId = async (accountId, options = {}) => {
+    let query = `
+        SELECT 
+            t.transactions_id,
+            t.from_account_id,
+            t.to_account_id,
+            t.amount,
+            t.transaction_type,
+            t.status,
+            t.description,
+            t.created_at
+        FROM transactions t
+        WHERE t.from_account_id = ?
+           OR t.to_account_id = ?
+        ORDER BY t.created_at DESC
+    `;
+    const params = [accountId, accountId];
+
+    if (options.limit) {
+        query += ` LIMIT ? OFFSET ?`;
+        params.push(String(options.limit), String(options.offset || 0));
+    }
+
+    const [rows] = await pool.execute(query, params);
+    return rows;
+};
+
 export default {
     findAccountByIdAndCustomer,
     findAccountByIdentifier,
@@ -142,6 +169,7 @@ export default {
     createTransaction,
     findTransactionById,
     getAccountById,
-    findTransactionsByCustomerId
+    findTransactionsByCustomerId,
+    findTransactionsByAccountId
 };
 
