@@ -4,6 +4,10 @@ import authMiddleware from "../auth/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/me/accounts", authMiddleware.verifyToken, customerController.getMyAccounts);
+router.use(authMiddleware.verifyToken);
+
+router.get("/me", customerController.getProfile);
+router.patch("/me", customerController.updateProfile);
+router.get("/me/accounts", customerController.getMyAccounts);
 
 export default router;
