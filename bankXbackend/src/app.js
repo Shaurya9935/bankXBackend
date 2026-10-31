@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import authRoutes from "./module/auth/auth.routes.js";
+import customerRoutes from "./module/customer/customer.routes.js";
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/customers", customerRoutes);
 
 export default app;
