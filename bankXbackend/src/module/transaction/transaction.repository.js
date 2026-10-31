@@ -29,6 +29,16 @@ const updateBalance = async (accountId, amount, connection) => {
     return result;
 };
 
+const deductBalance = async (accountId, amount, connection) => {
+    const [result] = await connection.execute(
+        `UPDATE accounts 
+         SET balance = balance - ? 
+         WHERE account_id = ? AND balance >= ?`,
+        [amount, accountId, amount]
+    );
+    return result;
+};
+
 const createTransaction = async (transactionData, connection) => {
     const {
         fromAccountId = null,
@@ -109,6 +119,7 @@ const findTransactionsByCustomerId = async (customerId) => {
 export default {
     findAccountByIdAndCustomer,
     updateBalance,
+    deductBalance,
     createTransaction,
     findTransactionById,
     getAccountById,

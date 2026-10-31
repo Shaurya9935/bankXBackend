@@ -9,6 +9,8 @@ router.use(authMiddleware.verifyToken);
 
 router.post("/deposit", transactionController.deposit);
 router.post("/:accountId/deposit", transactionController.deposit);
+router.post("/withdraw", transactionController.withdraw);
+router.post("/:accountId/withdraw", transactionController.withdraw);
 router.get("/", transactionController.getTransactions);
 
 export default router;

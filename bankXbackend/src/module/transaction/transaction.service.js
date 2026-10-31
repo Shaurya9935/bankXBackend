@@ -70,8 +70,81 @@ const getTransactions = async (customerId) => {
     return await transactionRepository.findTransactionsByCustomerId(customerId);
 };
 
+const withdraw = async (accountId, customerId, withdrawData) => {
+    const { amount, description } = withdrawData;
+
+    if (!accountId) {
+        throw ApiError.badRequest("Account identifier is required");
+    }
+
+    // 1. Confirm account belongs to the logged-in customer
+    const account = await transactionRepository.findAccountByIdAndCustomer(accountId, customerId);
+    if (!account) {
+        throw ApiError.notFound("Account not found");
+    }
+
+    // 2. Check the account is ACTIVE
+    if (account.status !== "ACTIVE") {
+        throw ApiError.badRequest(`Cannot withdraw from account with status '${account.status}'`);
+    }
+
+    // 3. Validate that the amount is positive
+    const numAmount = Number(amount);
+    if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+        throw ApiError.badRequest("Withdrawal amount must be greater than zero");
+    }
+
+    // 4. Ensure sufficient balance
+    const currentBalance = Number(account.balance);
+    if (currentBalance < numAmount) {
+        throw ApiError.badRequest("Insufficient balance for withdrawal");
+    }
+
+    // 5. Start MySQL transaction
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // Deduct the amount
+        const updateResult = await transactionRepository.deductBalance(account.account_id, numAmount, connection);
+        if (updateResult.affectedRows === 0) {
+            throw ApiError.badRequest("Insufficient balance for withdrawal");
+        }
+
+        // Insert WITHDRAWL record into transactions
+        const transactionId = await transactionRepository.createTransaction({
+            fromAccountId: account.account_id,
+            toAccountId: null,
+            amount: numAmount,
+            transactionType: "WITHDRAWL",
+            status: "SUCCESS",
+            description: description ? description.trim() : null
+        }, connection);
+
+        // Commit both changes together
+        await connection.commit();
+
+        const transaction = await transactionRepository.findTransactionById(transactionId);
+        const updatedAccount = await transactionRepository.getAccountById(account.account_id);
+
+        return {
+            ...transaction,
+            new_balance: updatedAccount.balance,
+            account: updatedAccount
+        };
+    } catch (error) {
+        // 6. Roll back both changes if anything fails
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
+
 export default {
     deposit,
+    withdraw,
     getTransactions
 };
 

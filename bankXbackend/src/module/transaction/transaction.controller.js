@@ -36,8 +36,30 @@ const getTransactions = async (req, res, next) => {
     }
 };
 
+const withdraw = async (req, res, next) => {
+    try {
+        const accountId = req.params.accountId || req.body.from_account_id || req.body.accountId;
+        const customerId = req.user.customerId;
+        const { amount, description } = req.body;
+
+        const result = await transactionService.withdraw(accountId, customerId, {
+            amount,
+            description
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Withdrawal completed successfully",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     deposit,
+    withdraw,
     getTransactions
 };
 
