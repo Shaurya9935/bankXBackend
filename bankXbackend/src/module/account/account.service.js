@@ -1,3 +1,4 @@
+import pool from "../../common/config/db.js";
 import accountRepository from "./account.repository.js";
 import ApiError from "../../common/utils/api-error.js";
 
@@ -50,8 +51,69 @@ const getMyAccount = async (accountId, customerId) => {
     return account;
 };
 
+const deposit = async (accountId, customerId, depositData) => {
+    const { amount, description } = depositData;
+
+    // 1. Confirm account belongs to customer
+    const account = await accountRepository.findAccountByAccountId(accountId, customerId);
+    if (!account) {
+        throw ApiError.notFound("Account not found");
+    }
+
+    if (account.status !== "ACTIVE") {
+        throw ApiError.badRequest(`Cannot deposit to account with status '${account.status}'`);
+    }
+
+    // 2. Validate amount > 0
+    const numAmount = Number(amount);
+    if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+        throw ApiError.badRequest("Deposit amount must be greater than zero");
+    }
+
+    // 3. Start MySQL transaction
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // 4. Increase account balance
+        await accountRepository.updateAccountBalance(account.account_id, numAmount, connection);
+
+        // 5. Insert DEPOSIT record into transactions
+        const transactionId = await accountRepository.createTransaction({
+            fromAccountId: null,
+            toAccountId: account.account_id,
+            amount: numAmount,
+            transactionType: "DEPOSIT",
+            status: "SUCCESS",
+            description: description ? description.trim() : null
+        }, connection);
+
+        // 6. Commit transaction
+        await connection.commit();
+
+        // Fetch transaction details and updated account
+        const transaction = await accountRepository.findTransactionById(transactionId);
+        const updatedAccount = await accountRepository.findAccountById(account.account_id);
+
+        return {
+            ...transaction,
+            new_balance: updatedAccount.balance,
+            account: updatedAccount
+        };
+    } catch (error) {
+        // Rollback both changes on failure
+        await connection.rollback();
+        throw error;
+    } finally {
+        // Ensure connection is always returned to the pool
+        connection.release();
+    }
+};
+
 export default {
     createAccount,
     getMyAccounts,
-    getMyAccount
+    getMyAccount,
+    deposit
 };

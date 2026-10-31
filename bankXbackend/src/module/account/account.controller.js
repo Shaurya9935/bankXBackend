@@ -50,8 +50,30 @@ const getMyAccount = async (req, res, next) => {
     }
 };
 
+const deposit = async (req, res, next) => {
+    try {
+        const accountId = req.params.accountId;
+        const customerId = req.user.customerId;
+        const { amount, description } = req.body;
+
+        const result = await accountService.deposit(accountId, customerId, {
+            amount,
+            description
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Deposit successful",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     createAccount,
     getMyAccounts,
-    getMyAccount
+    getMyAccount,
+    deposit
 };

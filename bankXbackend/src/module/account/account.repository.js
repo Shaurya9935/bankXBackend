@@ -91,10 +91,61 @@ const createAccount = async (accountData) => {
     return result.insertId;
 };
 
+const updateAccountBalance = async (accountId, amount, connection) => {
+    const [result] = await connection.execute(
+        `UPDATE accounts 
+         SET balance = balance + ? 
+         WHERE account_id = ?`,
+        [amount, accountId]
+    );
+    return result;
+};
+
+const createTransaction = async (transactionData, connection) => {
+    const {
+        fromAccountId = null,
+        toAccountId = null,
+        amount,
+        transactionType,
+        status = "SUCCESS",
+        description = null
+    } = transactionData;
+
+    const [result] = await connection.execute(
+        `INSERT INTO transactions 
+         (from_account_id, to_account_id, amount, transaction_type, status, description)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [fromAccountId, toAccountId, amount, transactionType, status, description]
+    );
+    return result.insertId;
+};
+
+const findTransactionById = async (transactionId, connection) => {
+    const client = connection || pool;
+    const [rows] = await client.execute(
+        `SELECT 
+            transactions_id,
+            from_account_id,
+            to_account_id,
+            amount,
+            transaction_type,
+            status,
+            description,
+            created_at
+         FROM transactions
+         WHERE transactions_id = ?`,
+        [transactionId]
+    );
+    return rows[0] || null;
+};
+
 export default {
     findAccountByAccountId,
     findAccountsByCustomerId,
     findAccountById,
     getDefaultBranchId,
-    createAccount
+    createAccount,
+    updateAccountBalance,
+    createTransaction,
+    findTransactionById
 };
