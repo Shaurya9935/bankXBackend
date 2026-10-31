@@ -1,90 +1,246 @@
 # BankX Backend
 
-BankX is the backend foundation for a banking management system. The current
-implementation is centered on a MySQL database schema for customers, login
-users, bank accounts, and account transactions.
+BankX is a backend banking management REST API built with Node.js (ESM), Express 5, and MySQL 8.0. It provides secure user authentication, account management, and ACID-compliant transactional money operations (deposits, withdrawals, and transfers).
 
-## Project structure
+---
+
+## 1. Project Structure
 
 ```text
-.
-├── init.sql                 # Database and table definitions
-├── docker-compose.yml       # MySQL 8.0 development service
-├── package.json             # Node.js project metadata and dependencies
+bankXbackend/
+├── docker-compose.yml           # MySQL 8.0 container definition
+├── init.sql                     # Database schema definitions and constraints
+├── package.json                 # Node dependencies and npm scripts
+├── server.js                    # Server startup and database connection verification
 └── src/
-    ├── common/              # Configuration, middleware, DTOs, and utilities
-    ├── db/queries/          # SQL query drafts
-    └── module/              # Auth, customer, account, transaction, and admin modules
+    ├── app.js                   # Express application setup, global middleware, and route mounting
+    ├── common/
+    │   ├── config/
+    │   │   ├── db.js            # MySQL connection pool (mysql2/promise)
+    │   │   └── env.js           # Environment variable loader
+    │   ├── middleware/
+    │   │   ├── auth.middleware.js     # JWT Bearer token authentication
+    │   │   ├── error.middleware.js    # Global error handler (JSON formatted)
+    │   │   └── validate.middleware.js # Schema validation middleware
+    │   └── utils/
+    │       ├── api-error.js     # Operational ApiError helper
+    │       ├── api-response.js  # Standard ApiResponse envelope
+    │       └── jwt.js           # JWT sign & verify utilities
+    └── module/
+        ├── account/             # Account creation, lookups, and account-specific transactions
+        │   ├── account.controller.js
+        │   ├── account.repository.js
+        │   ├── account.routes.js
+        │   └── account.service.js
+        ├── auth/                # Customer registration, user login, and session validation
+        │   ├── auth.controller.js
+        │   ├── auth.middleware.js
+        │   ├── auth.repository.js
+        │   ├── auth.routes.js
+        │   └── auth.service.js
+        ├── customer/            # Customer profile and profile updates
+        │   ├── customer.controller.js
+        │   ├── customer.repository.js
+        │   ├── customer.routes.js
+        │   └── customer.service.js
+        └── transaction/         # Money operations (deposit, withdraw, transfer) and history
+            ├── transaction.controller.js
+            ├── transaction.repository.js
+            ├── transaction.routes.js
+            └── transaction.service.js
 ```
 
-## Getting started
+---
+
+## 2. Getting Started
 
 ### Prerequisites
+* [Docker Desktop](https://www.docker.com/) with Docker Compose
+* [Node.js](https://nodejs.org/) (v18+) and npm
 
-- Docker Desktop with Docker Compose
-- Node.js and npm
-
-### Start MySQL
-
-From this directory, run:
-
+### 1. Start MySQL Database
+Start the containerized MySQL database:
 ```bash
 docker compose up -d mysql
 ```
 
-The database is available on `localhost:3306` with:
+The database runs on `localhost:3306` with the development credentials:
+* **Database**: `banking_systems`
+* **User**: `root`
+* **Password**: `root`
 
-| Setting | Value |
-| --- | --- |
-| Database | `banking_systems` |
-| User | `root` |
-| Password | `root` |
-| Port | `3306` |
+> To reset the database to a clean state matching `init.sql`:
+> ```bash
+> docker compose down -v
+> docker compose up -d mysql
+> ```
 
-The `init.sql` file is mounted into MySQL's initialization directory. MySQL
-only runs initialization scripts when the data volume is created for the first
-time. To initialize a clean database during local development:
+### 2. Configure Environment Variables
+Create or verify `.env` in `bankXbackend/`:
+```env
+PORT=5001
+NODE_ENV=development
 
-```bash
-docker compose down -v
-docker compose up -d mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=banking_systems
+
+JWT_SECRET=replace_with_a_long_random_secret
 ```
 
-> The database credentials in `docker-compose.yml` are development defaults.
-> Use environment-specific secrets before deploying this project.
-
-### VS Code Database Connection
-
-If using VS Code with the [SQLTools](https://marketplace.visualstudio.com/items?itemName=mtxr.sqltools) extension and its MySQL driver, a pre-configured connection named **bankX** is provided in [`.vscode/settings.json`](./.vscode/settings.json) connecting to `localhost:3306` (`root` / `root`).
-
-Install Node.js dependencies with:
-
+### 3. Install Dependencies and Run
 ```bash
 npm install
+npm run dev
 ```
 
-The application and module files are present as the project structure is being
-built; database initialization is the currently implemented runnable setup.
+The server starts on **`http://localhost:5001`**. Verify health:
+```bash
+curl http://localhost:5001/health
+# {"success":true,"message":"BankX API is running"}
+```
 
-## Database design
+---
 
-The schema is defined in [`init.sql`](./init.sql) and uses four core entities:
+## 3. Architecture & Design Principles
 
-- **customers** stores a customer's personal and contact information.
-- **users** stores authentication information for a customer or administrator.
-- **accounts** stores the customer's bank accounts and current balances.
-- **transactions** stores deposits, withdrawals, and transfers involving
-  accounts.
+### Layered Modular Pattern
+Each domain feature is encapsulated under `src/module/<feature>/`:
+* **Routes (`*.routes.js`)**: Maps HTTP paths, applies middleware (JWT validation, request sanitization).
+* **Controller (`*.controller.js`)**: Extracts parameters from request (`params`, `query`, `body`, `req.user`), delegates to service, and formats HTTP response envelopes.
+* **Service (`*.service.js`)**: Encapsulates business logic, balance validation, state transitions, and coordinates multi-step database transactions.
+* **Repository (`*.repository.js`)**: Executes raw SQL queries and prepared statements against the database pool or transactional connection.
 
-### Entity-relationship diagram
+### Transaction Safety & ACID Compliance
+All money-moving operations (deposit, withdraw, transfer) execute inside an atomic MySQL transaction:
+1. `const connection = await pool.getConnection();`
+2. `await connection.beginTransaction();`
+3. Execute account balance updates + record corresponding `transactions` rows.
+4. `await connection.commit();`
+5. On any failure, `await connection.rollback()` is executed in the `catch` block.
+6. The connection is guaranteed to be returned to the pool via `connection.release()` inside the `finally` block to prevent connection leaks.
 
-The diagram uses crow's-foot notation. `||` means exactly one, `o|` means zero
-or one, and `o{` means zero or many.
+---
+
+## 4. API Endpoints
+
+All authenticated endpoints require the header:
+```http
+Authorization: Bearer <token>
+```
+
+### Health Check
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Server status check | Public |
+
+### 4.1 Authentication Module (`/api/auth`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register customer profile & user login | Public |
+| `POST` | `/api/auth/login` | Authenticate user with email and password | Public |
+| `GET` | `/api/auth/me` | Fetch active user session & customer profile | Bearer |
+
+#### `POST /api/auth/register`
+* **Body**:
+  ```json
+  {
+    "fullName": "Rahul Sharma",
+    "email": "rahul@gmail.com",
+    "phone": "9876543210",
+    "password": "Password123",
+    "dateOfBirth": "2000-05-15",
+    "address": "Civil Lines, Kanpur"
+  }
+  ```
+* **Response (`201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Registration successful",
+    "data": {
+      "token": "eyJhbGciOi...",
+      "user": { "user_id": 1, "customer_id": 1, "role": "CUSTOMER" },
+      "customer": { "customer_id": 1, "full_name": "Rahul Sharma", "email": "rahul@gmail.com", "phone": "9876543210", "address": "Civil Lines, Kanpur", "date_of_birth": "2000-05-15" }
+    }
+  }
+  ```
+
+#### `POST /api/auth/login`
+* **Body**:
+  ```json
+  { "email": "rahul@gmail.com", "password": "Password123" }
+  ```
+* **Response (`200 OK`)**: Returns token, user, and customer objects.
+
+---
+
+### 4.2 Customer Profile Module (`/api/customers`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/customers/me` | Get current customer's profile | Bearer |
+| `PATCH` | `/api/customers/me` | Update customer's profile fields | Bearer |
+| `GET` | `/api/customers/me/accounts` | Get accounts owned by the customer | Bearer |
+
+---
+
+### 4.3 Accounts Module (`/api/accounts`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/accounts` | List accounts belonging to customer | Bearer |
+| `POST` | `/api/accounts` | Open a new bank account (`SAVINGS` or `CURRENT`) | Bearer |
+| `GET` | `/api/accounts/:accountId` | Get account details by ID or 12-digit account number | Bearer |
+| `GET` | `/api/accounts/:accountId/transactions`| Get transaction history for specific account | Bearer |
+| `POST` | `/api/accounts/:accountId/deposit` | Deposit money into account | Bearer |
+| `POST` | `/api/accounts/:accountId/withdraw` | Withdraw money from account | Bearer |
+| `POST` | `/api/accounts/:accountId/transfer` | Transfer money to another account | Bearer |
+
+#### `POST /api/accounts`
+* **Body**: `{ "account_type": "SAVINGS" }` (or `"CURRENT"`)
+* **Response (`201 Created`)**: Auto-generates unique 12-digit account number (e.g. `100172485191`) and associates fallback branch.
+
+---
+
+### 4.4 Transactions Module (`/api/transactions`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/transactions` | List all transactions for customer | Bearer |
+| `POST` | `/api/transactions/deposit` | Deposit money (`{ to_account_id, amount, description }`) | Bearer |
+| `POST` | `/api/transactions/withdraw` | Withdraw money (`{ from_account_id, amount, description }`)| Bearer |
+| `POST` | `/api/transactions/transfer` | Transfer money between accounts | Bearer |
+
+#### Transfer Example
+```http
+POST /api/accounts/1/transfer
+Authorization: Bearer <TOKEN>
+Content-Type: application/json
+
+{
+  "toAccountNumber": "100172485191",
+  "amount": 1500,
+  "description": "Rent payment"
+}
+```
+* **Validation**:
+  - Sender account must belong to logged-in customer and be `ACTIVE`.
+  - Recipient account must exist, be `ACTIVE`, and cannot be the sender account.
+  - Sender balance must be $\ge$ transfer amount.
+  - Changes are committed atomically in MySQL.
+
+---
+
+## 5. Database Design & Schemas
+
+The schema is defined in [`init.sql`](./init.sql) and uses core banking entities:
 
 ```mermaid
 erDiagram
     CUSTOMERS ||--o| USERS : "has login"
     CUSTOMERS ||--o{ ACCOUNTS : owns
+    BRANCHES ||--o{ ACCOUNTS : maintains
+    BRANCHES ||--o{ EMPLOYEES : employs
     ACCOUNTS o|--o{ TRANSACTIONS : "from account"
     ACCOUNTS o|--o{ TRANSACTIONS : "to account"
 
@@ -95,6 +251,15 @@ erDiagram
         VARCHAR phone UK
         VARCHAR address
         DATE date_of_birth
+        TIMESTAMP created_at
+    }
+
+    BRANCHES {
+        INT branch_id PK
+        VARCHAR branch_name
+        VARCHAR branch_code UK
+        VARCHAR city
+        VARCHAR address
         TIMESTAMP created_at
     }
 
@@ -109,7 +274,8 @@ erDiagram
     ACCOUNTS {
         INT account_id PK
         INT customer_id FK
-        VARCHAR account_number
+        INT branch_id FK
+        VARCHAR account_number UK
         ENUM account_type
         DECIMAL balance
         ENUM status
@@ -128,150 +294,46 @@ erDiagram
     }
 ```
 
-`TRANSACTIONS` has two separate relationships to `ACCOUNTS`: one for the
-source account and one for the destination account. Deposits normally use a
-null `from_account_id`, withdrawals normally use a null `to_account_id`, and
-transfers use both account references. These transaction-type rules are
-business semantics and are not currently represented by a database `CHECK`
-constraint.
+### Constraints & Integrity Rules
+- `customers.email` and `customers.phone` are declared `UNIQUE` and `NOT NULL`.
+- `users.customer_id` has a unique foreign key constraint establishing a 1-to-1 relationship.
+- `accounts.account_number` is `UNIQUE`.
+- `accounts.balance >= 0` check constraint prevents negative balances at the database level.
+- `transactions.amount > 0` check constraint enforces positive transaction amounts.
+- `transaction_type` ENUM: `'DEPOSIT'`, `'WITHDRAWL'`, `'TRANSFER'`.
+- `account_type` ENUM: `'SAVINGS'`, `'CURRENT'`.
+- `status` ENUMs: Accounts (`'ACTIVE'`, `'FROZEN'`, `'CLOSED'`), Transactions (`'SUCCESS'`, `'FAILED'`).
 
-## Keys and constraints
+---
 
-### Key
-
-A key is an attribute, or a set of attributes, that identifies a row. The
-schema uses the following keys:
-
-| Table | Key | Type | Purpose |
-| --- | --- | --- | --- |
-| `customers` | `customer_id` | Primary key | Identifies each customer |
-| `customers` | `email` | Alternate key (`UNIQUE`) | Prevents duplicate email addresses |
-| `customers` | `phone` | Alternate key (`UNIQUE`) | Prevents duplicate phone numbers |
-| `users` | `user_id` | Primary key | Identifies each login record |
-| `users` | `customer_id` | Alternate key (`UNIQUE`) | Allows at most one user record per customer |
-| `accounts` | `account_id` | Primary key | Identifies each bank account |
-| `transactions` | `transactions_id` | Primary key | Identifies each transaction |
-
-`AUTO_INCREMENT` generates values for the integer primary keys. Foreign keys
-connect rows across tables:
-
-- `users.customer_id` references `customers.customer_id`.
-- `accounts.customer_id` references `customers.customer_id`.
-- `transactions.from_account_id` references `accounts.account_id`.
-- `transactions.to_account_id` references `accounts.account_id`.
-
-### Other integrity constraints
-
-- Required fields use `NOT NULL`.
-- Customer email addresses and phone numbers are unique.
-- A user's role is `CUSTOMER` or `ADMIN`.
-- An account type is `SAVINGS` or `CURRENT`.
-- An account status is `ACTIVE`, `FROZEN`, or `CLOSED`.
-- A transaction type is `DEPOSIT`, `WITHDRAWL`, or `TRANSFER`.
-- A transaction status is `SUCCESS` or `FAILED`.
-- `accounts.balance >= 0`.
-- `transactions.amount > 0`.
-- Deleting a customer cascades to the related user record.
-- Deleting a customer is restricted while accounts reference that customer.
-
-The schema currently does **not** declare `account_number` as `UNIQUE`.
-Therefore, `account_id`, not `account_number`, is the guaranteed account key.
-If account numbers are intended to be externally unique, add a unique
-constraint before relying on that rule in application code.
-
-## Functional dependencies
-
-A functional dependency `X -> Y` means that knowing the value of `X`
-determines exactly one value of `Y`. The dependencies below are derived from
-the declared primary and unique keys in `init.sql`.
+## 6. Functional Dependencies & Normalization
 
 ### `customers`
-
-Candidate keys are `customer_id`, `email`, and `phone`.
-
+Candidate keys: `customer_id`, `email`, `phone`.
 ```text
 customer_id -> full_name, email, phone, address, date_of_birth, created_at
 email       -> customer_id, full_name, phone, address, date_of_birth, created_at
 phone       -> customer_id, full_name, email, address, date_of_birth, created_at
 ```
 
-`email` and `phone` are alternate keys because they are declared `UNIQUE` and
-`NOT NULL`. The `UNIQUE` constraint prevents two customers from sharing either
-value.
-
 ### `users`
-
-Candidate keys are `user_id` and `customer_id`.
-
+Candidate keys: `user_id`, `customer_id`.
 ```text
 user_id     -> customer_id, password_hash, role, created_at
 customer_id -> user_id, password_hash, role, created_at
 ```
 
-The second dependency exists because `users.customer_id` is both a foreign key
-and `UNIQUE`. It models a one-to-zero-or-one login record for each customer.
-
 ### `accounts`
-
-The declared candidate key is `account_id`.
-
+Candidate keys: `account_id`, `account_number`.
 ```text
-account_id -> customer_id, account_number, account_type, balance, status, created_at
-```
-
-The following dependency must **not** be assumed from the current schema:
-
-```text
-account_number -> account_id
-```
-
-It would only be valid if `account_number` had a `UNIQUE` constraint. Also,
-`customer_id` does not determine one account because a customer may own
-multiple accounts:
-
-```text
-customer_id -/> account_id
+account_id     -> customer_id, branch_id, account_number, account_type, balance, status, created_at
+account_number -> account_id, customer_id, branch_id, account_type, balance, status, created_at
 ```
 
 ### `transactions`
-
-The declared candidate key is `transactions_id`.
-
+Candidate key: `transactions_id`.
 ```text
-transactions_id -> from_account_id, to_account_id, amount,
-                   transaction_type, status, description, created_at
+transactions_id -> from_account_id, to_account_id, amount, transaction_type, status, description, created_at
 ```
 
-Neither `from_account_id` nor `to_account_id` identifies a transaction; an
-account can participate in many transactions. Likewise, the combination of
-the two account IDs, amount, and timestamp is not declared unique and cannot
-be treated as a candidate key.
-
-### Normalization summary
-
-Under the constraints declared in `init.sql`, each table is in BCNF:
-
-1. Every non-trivial functional dependency has a determinant that is a
-   candidate key.
-2. Customer contact attributes and user identity are protected by explicit
-   alternate keys.
-3. Repeating account and transaction data is separated into its own relation.
-4. Foreign keys represent relationships without duplicating the referenced
-   entity's descriptive attributes.
-
-This normalization assessment depends on the declared constraints. For
-example, adding a business rule that makes `account_number` unique would make
-it an additional candidate key; omitting that constraint means the database
-does not enforce that dependency.
-
-## Data model caveats
-
-- `WITHDRAWL` is the spelling currently used by the database enum. Changing it
-  to `WITHDRAWAL` requires a schema and application migration.
-- The database does not currently enforce that a transfer has two distinct
-  valid accounts, or that deposits and withdrawals use the expected nullable
-  account column.
-- The database stores balances and transaction rows, but does not yet define
-  a ledger trigger or transaction procedure to reconcile them automatically.
-- The commented index definitions in `init.sql` can be enabled when query
-  patterns and deployment requirements are established.
+Under these constraints, each relation is in **Boyce-Codd Normal Form (BCNF)**.
