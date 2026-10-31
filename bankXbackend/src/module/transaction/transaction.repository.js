@@ -19,6 +19,24 @@ const findAccountByIdAndCustomer = async (accountId, customerId) => {
     return rows[0] || null;
 };
 
+const findAccountByIdentifier = async (identifier) => {
+    const cleanId = String(identifier).replace(/^:/, "").trim();
+    const [rows] = await pool.execute(
+        `SELECT 
+            account_id,
+            customer_id,
+            account_number,
+            account_type,
+            balance,
+            status,
+            created_at
+         FROM accounts
+         WHERE account_id = ? OR account_number = ?`,
+        [cleanId, cleanId]
+    );
+    return rows[0] || null;
+};
+
 const updateBalance = async (accountId, amount, connection) => {
     const [result] = await connection.execute(
         `UPDATE accounts 
@@ -118,6 +136,7 @@ const findTransactionsByCustomerId = async (customerId) => {
 
 export default {
     findAccountByIdAndCustomer,
+    findAccountByIdentifier,
     updateBalance,
     deductBalance,
     createTransaction,

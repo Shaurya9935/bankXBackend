@@ -142,9 +142,105 @@ const withdraw = async (accountId, customerId, withdrawData) => {
     }
 };
 
+const transfer = async (fromAccountId, customerId, transferData) => {
+    const { toAccountNumber, to_account_number, to_account_id, toAccountId, amount, description } = transferData;
+    const recipientIdentifier = toAccountNumber || to_account_number || to_account_id || toAccountId;
+
+    if (!fromAccountId) {
+        throw ApiError.badRequest("Sender account identifier is required");
+    }
+
+    if (!recipientIdentifier) {
+        throw ApiError.badRequest("Recipient account number or ID is required");
+    }
+
+    // 1. Verify the sender account belongs to the logged-in customer
+    const senderAccount = await transactionRepository.findAccountByIdAndCustomer(fromAccountId, customerId);
+    if (!senderAccount) {
+        throw ApiError.notFound("Sender account not found or does not belong to you");
+    }
+
+    // 2. Find the recipient account using the account number
+    const recipientAccount = await transactionRepository.findAccountByIdentifier(recipientIdentifier);
+    if (!recipientAccount) {
+        throw ApiError.notFound("Recipient account not found");
+    }
+
+    // 3. Validate both accounts are active and different
+    if (senderAccount.account_id === recipientAccount.account_id) {
+        throw ApiError.badRequest("Sender and recipient accounts must be different");
+    }
+
+    if (senderAccount.status !== "ACTIVE") {
+        throw ApiError.badRequest(`Sender account is not active (status: ${senderAccount.status})`);
+    }
+
+    if (recipientAccount.status !== "ACTIVE") {
+        throw ApiError.badRequest(`Recipient account is not active (status: ${recipientAccount.status})`);
+    }
+
+    // 4. Validate amount is positive and sender has sufficient balance
+    const numAmount = Number(amount);
+    if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+        throw ApiError.badRequest("Transfer amount must be greater than zero");
+    }
+
+    const currentSenderBalance = Number(senderAccount.balance);
+    if (currentSenderBalance < numAmount) {
+        throw ApiError.badRequest("Insufficient balance for transfer");
+    }
+
+    // 5. Start MySQL transaction
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // Deduct from sender
+        const deductResult = await transactionRepository.deductBalance(senderAccount.account_id, numAmount, connection);
+        if (deductResult.affectedRows === 0) {
+            throw ApiError.badRequest("Insufficient balance for transfer");
+        }
+
+        // Credit recipient
+        await transactionRepository.updateBalance(recipientAccount.account_id, numAmount, connection);
+
+        // 6. Insert a TRANSFER transaction record
+        const transactionId = await transactionRepository.createTransaction({
+            fromAccountId: senderAccount.account_id,
+            toAccountId: recipientAccount.account_id,
+            amount: numAmount,
+            transactionType: "TRANSFER",
+            status: "SUCCESS",
+            description: description ? description.trim() : null
+        }, connection);
+
+        // 7. Commit changes together
+        await connection.commit();
+
+        const transaction = await transactionRepository.findTransactionById(transactionId);
+        const updatedSenderAccount = await transactionRepository.getAccountById(senderAccount.account_id);
+
+        return {
+            ...transaction,
+            sender_account_id: senderAccount.account_id,
+            recipient_account_id: recipientAccount.account_id,
+            new_balance: updatedSenderAccount.balance,
+            account: updatedSenderAccount
+        };
+    } catch (error) {
+        // Rollback if anything fails
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
+    }
+};
+
 export default {
     deposit,
     withdraw,
+    transfer,
     getTransactions
 };
 

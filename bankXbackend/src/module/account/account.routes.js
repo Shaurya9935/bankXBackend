@@ -11,5 +11,6 @@ router.get("/", accountController.getMyAccounts);
 router.get("/:accountId", accountController.getMyAccount);
 router.post("/:accountId/deposit", accountController.deposit);
 router.post("/:accountId/withdraw", accountController.withdraw);
+router.post("/:accountId/transfer", accountController.transfer);
 
 export default router;

@@ -57,9 +57,32 @@ const withdraw = async (req, res, next) => {
     }
 };
 
+const transfer = async (req, res, next) => {
+    try {
+        const fromAccountId = req.params.accountId || req.body.from_account_id || req.body.fromAccountId;
+        const customerId = req.user.customerId;
+        const { toAccountNumber, to_account_number, to_account_id, toAccountId, amount, description } = req.body;
+
+        const result = await transactionService.transfer(fromAccountId, customerId, {
+            toAccountNumber: toAccountNumber || to_account_number || to_account_id || toAccountId,
+            amount,
+            description
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Transfer completed successfully",
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export default {
     deposit,
     withdraw,
+    transfer,
     getTransactions
 };
 
