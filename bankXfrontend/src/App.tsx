@@ -34,6 +34,7 @@ import {
   UserRound,
   WalletCards,
   X,
+  Loader2,
 } from "lucide-react";
 import { accountApi, apiError, customerApi, transactionApi } from "./api";
 import { useAuth } from "./auth";
@@ -143,14 +144,22 @@ function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => {
+  const [success, setSuccess] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const loadData = () => {
     void Promise.all([accountApi.list(), transactionApi.list()])
       .then(([accountsResponse, transactionsResponse]) => {
         setAccounts(accountsResponse.data.data);
         setTransactions(transactionsResponse.data.data);
       })
       .catch((requestError) => setError(apiError(requestError)));
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
   const total = accounts.reduce(
     (sum, account) => sum + Number(account.balance),
     0,
@@ -162,6 +171,7 @@ function Dashboard() {
       date: shortDate(transaction.created_at),
       amount: Number(transaction.amount),
     }));
+
   return (
     <>
       <PageHeader
@@ -169,13 +179,64 @@ function Dashboard() {
         title={`Good morning, ${customer?.full_name?.split(" ")[0] || "there"}.`}
         subtitle="Here is your verified financial snapshot."
         action={
-          <Link className="button primary" to="/deposit">
-            <Plus size={17} />
-            New transaction
-          </Link>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <button className="button primary" onClick={() => setCreateOpen(true)}>
+              <Plus size={17} />
+              Create account
+            </button>
+            <Link className="button" style={{ background: "#edf3ff", color: "#2457d6" }} to="/deposit">
+              <CircleDollarSign size={17} />
+              New transaction
+            </Link>
+          </div>
         }
       />
       {error && <Alert>{error}</Alert>}
+      {success && (
+        <div className="alert success" style={{ marginBottom: "18px" }}>
+          <CheckCircle2 size={16} />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {accounts.length === 0 && !error && (
+        <div
+          className="panel"
+          style={{
+            background: "linear-gradient(135deg, #101b35 0%, #1c3260 100%)",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "24px 28px",
+            borderRadius: "16px",
+            marginBottom: "22px",
+            gap: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <p className="eyebrow" style={{ color: "#9fc0ff", marginBottom: "4px" }}>
+              GET STARTED
+            </p>
+            <h3 style={{ margin: "0 0 6px", font: "800 1.25rem Manrope" }}>
+              No bank account found
+            </h3>
+            <p style={{ margin: 0, color: "#bdc9e0", fontSize: "0.85rem" }}>
+              Open your first BankX savings or current account in seconds to start depositing and transferring funds.
+            </p>
+          </div>
+          <button
+            className="button primary"
+            style={{ background: "#2457d6", color: "#fff", border: 0 }}
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus size={17} />
+            Create account now
+          </button>
+        </div>
+      )}
+
       <div className="summary-grid">
         <SummaryCard
           navy
@@ -245,6 +306,27 @@ function Dashboard() {
         <section className="panel">
           <PanelHeading eyebrow="QUICK ACTIONS" title="Move money securely" />
           <div className="quick-actions">
+            <button
+              className="quick-action"
+              style={{
+                background: "transparent",
+                border: 0,
+                width: "100%",
+                textAlign: "left",
+                cursor: "pointer",
+                font: "inherit",
+              }}
+              onClick={() => setCreateOpen(true)}
+            >
+              <span>
+                <CreditCard size={19} />
+              </span>
+              <div>
+                <strong>Open new account</strong>
+                <small>Create savings or current account</small>
+              </div>
+              <ChevronRight size={16} />
+            </button>
             <QuickAction
               to="/deposit"
               icon={<ArrowDownLeft size={19} />}
@@ -291,6 +373,16 @@ function Dashboard() {
           />
         )}
       </section>
+
+      <CreateAccountModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => {
+          setSuccess("Bank account created successfully!");
+          loadData();
+          setTimeout(() => setSuccess(""), 5000);
+        }}
+      />
     </>
   );
 }
@@ -298,7 +390,9 @@ function Dashboard() {
 function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+
   const load = () => {
     void accountApi
       .list()
@@ -306,18 +400,7 @@ function Accounts() {
       .catch((requestError) => setError(apiError(requestError)));
   };
   useEffect(load, []);
-  const create = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      await accountApi.create("SAVINGS");
-      load();
-    } catch (requestError) {
-      setError(apiError(requestError));
-    } finally {
-      setBusy(false);
-    }
-  };
+
   return (
     <>
       <PageHeader
@@ -325,13 +408,19 @@ function Accounts() {
         title="Your accounts"
         subtitle="View balances and account status returned by the BankX API."
         action={
-          <button className="button primary" onClick={create} disabled={busy}>
+          <button className="button primary" onClick={() => setCreateOpen(true)}>
             <Plus size={17} />
-            {busy ? "Creating..." : "Open savings account"}
+            Create account
           </button>
         }
       />
       {error && <Alert>{error}</Alert>}
+      {success && (
+        <div className="alert success" style={{ marginBottom: "18px" }}>
+          <CheckCircle2 size={16} />
+          <span>{success}</span>
+        </div>
+      )}
       <div className="account-grid">
         {accounts.map((account) => (
           <AccountCard account={account} key={account.account_id} />
@@ -340,10 +429,181 @@ function Accounts() {
       {!accounts.length && !error && (
         <EmptyState
           title="No accounts found"
-          text="Open a savings account to get started."
+          text="Open a savings or current account to get started."
         />
       )}
+      <CreateAccountModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => {
+          setSuccess("Bank account created successfully!");
+          load();
+          setTimeout(() => setSuccess(""), 5000);
+        }}
+      />
     </>
+  );
+}
+
+function CreateAccountModal({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { customer } = useAuth();
+  const [accountType, setAccountType] = useState<"SAVINGS" | "CURRENT">("SAVINGS");
+  const [initialDeposit, setInitialDeposit] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) return null;
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+
+    try {
+      // 1. Create the account with required details (account_type)
+      const { data } = await accountApi.create({ account_type: accountType });
+      const newAccount = data.data;
+
+      // 2. If user entered an initial deposit > 0, make deposit
+      const depositAmount = parseFloat(initialDeposit);
+      if (!isNaN(depositAmount) && depositAmount > 0) {
+        await accountApi.deposit(newAccount.account_id, depositAmount, "Initial opening deposit");
+      }
+
+      onSuccess();
+      onClose();
+    } catch (requestError) {
+      setError(apiError(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow" style={{ margin: "0 0 4px" }}>NEW ACCOUNT</p>
+            <h2>Open BankX account</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Close modal">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {error && <Alert>{error}</Alert>}
+
+            <Field label="Account holder">
+              <input
+                value={customer?.full_name || "Verified customer"}
+                disabled
+                style={{ background: "#f5f7fb", cursor: "not-allowed" }}
+              />
+            </Field>
+
+            <div>
+              <span className="field-label" style={{ marginBottom: "8px" }}>Account type</span>
+              <div className="account-type-grid">
+                <button
+                  type="button"
+                  className={`account-type-option ${accountType === "SAVINGS" ? "selected" : ""}`}
+                  onClick={() => setAccountType("SAVINGS")}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong>Savings Account</strong>
+                    {accountType === "SAVINGS" && <CheckCircle2 size={16} color="#2457d6" />}
+                  </div>
+                  <small>Personal banking, routine expenses, and daily savings.</small>
+                </button>
+
+                <button
+                  type="button"
+                  className={`account-type-option ${accountType === "CURRENT" ? "selected" : ""}`}
+                  onClick={() => setAccountType("CURRENT")}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <strong>Current Account</strong>
+                    {accountType === "CURRENT" && <CheckCircle2 size={16} color="#2457d6" />}
+                  </div>
+                  <small>Commercial operations, business cashflow, and higher limits.</small>
+                </button>
+              </div>
+            </div>
+
+            <Field label="Assigned branch">
+              <input
+                value="Main Branch · BX001 (Head Office, Mumbai)"
+                disabled
+                style={{ background: "#f5f7fb", cursor: "not-allowed" }}
+              />
+            </Field>
+
+            <Field label="Initial deposit (₹) (Optional)">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                placeholder="e.g. 5000 (leave blank for ₹0.00)"
+                value={initialDeposit}
+                onChange={(e) => setInitialDeposit(e.target.value)}
+              />
+            </Field>
+
+            <div
+              style={{
+                background: "#f0f5ff",
+                border: "1px solid #dbe6ff",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                fontSize: "0.78rem",
+                color: "#36558f",
+                display: "flex",
+                gap: "9px",
+                alignItems: "flex-start",
+              }}
+            >
+              <ShieldCheck size={18} style={{ flexShrink: 0, marginTop: "1px", color: "#2457d6" }} />
+              <span>
+                Your 12-digit account number will be provisioned instantly. The initial status will be <strong>ACTIVE</strong>.
+              </span>
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="button"
+              style={{ background: "#f0f2f6", color: "#475467" }}
+              onClick={onClose}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="button primary" disabled={busy}>
+              {busy ? (
+                <>
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  <span>Opening account...</span>
+                </>
+              ) : (
+                "Open account"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

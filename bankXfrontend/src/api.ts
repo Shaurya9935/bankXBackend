@@ -38,8 +38,16 @@ export const customerApi = {
 
 export const accountApi = {
   list: () => api.get<ApiResponse<Account[]>>("/accounts"),
-  get: (id: number) => api.get<ApiResponse<Account>>(`/accounts/${id}`),
-  create: (account_type: Account["account_type"]) => api.post<ApiResponse<Account>>("/accounts", { account_type })
+  get: (id: number | string) => api.get<ApiResponse<Account>>(`/accounts/${id}`),
+  create: (payload: Account["account_type"] | { account_type?: Account["account_type"]; branch_id?: number } = "SAVINGS") => {
+    const body = typeof payload === "string" ? { account_type: payload } : payload;
+    return api.post<ApiResponse<Account>>("/accounts", body);
+  },
+  deposit: (accountId: number | string, amount: number | string, description?: string) =>
+    api.post<ApiResponse<Transaction>>(`/accounts/${accountId}/deposit`, {
+      amount: Number(amount),
+      description: description || "Initial opening deposit"
+    })
 };
 
 export const transactionApi = {

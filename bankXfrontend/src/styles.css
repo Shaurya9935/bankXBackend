@@ -11,3 +11,19 @@
 
 /* Small visual refinements that preserve the existing layout and behavior. */
 :focus-visible{outline:3px solid #9fc0ff;outline-offset:2px}.button,.quick-action,.account-card,.panel,.summary-card{transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.button.primary{box-shadow:0 6px 14px #2457d626}.button.primary:hover{box-shadow:0 8px 18px #2457d63b}.quick-action:hover{background:#fafcff}.account-card:hover,.summary-card:not(.navy):hover,.panel:hover{border-color:#dbe4f3;box-shadow:0 8px 24px #1720330b}.account-card:hover{transform:translateY(-1px)}.search:focus-within{border-color:#2457d6;box-shadow:0 0 0 3px #2457d61c}.table-row:hover{background:#fafcff}.table-head,.table-row{padding-left:8px;padding-right:8px}.content{width:100%}.page-header .button{white-space:nowrap}@media(max-width:850px){.page-header .button{width:100%}.toolbar{align-items:stretch;flex-direction:column}.search{max-width:none}.topbar{height:72px}.content{padding-top:32px}}@media(max-width:500px){.content{padding-left:20px;padding-right:20px}.page-header h1{font-size:2rem}.summary-card{min-height:128px;padding:20px}.account-grid{grid-template-columns:1fr}.form{gap:16px}}
+
+/* Modal Dialog */
+.modal-overlay{position:fixed;inset:0;background:rgba(16,27,53,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;animation:modalFadeIn .15s ease-out}
+.modal-container{background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 20px 45px rgba(16,27,53,0.2);border:1px solid #e9edf3;overflow:hidden;animation:modalScale .2s cubic-bezier(0.16,1,0.3,1);display:flex;flex-direction:column}
+.modal-header{padding:20px 24px 16px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #edf0f4}
+.modal-header h2{font:800 1.35rem Manrope;margin:0;letter-spacing:-.03em}
+.modal-body{padding:22px 24px;display:grid;gap:16px}
+.modal-footer{padding:16px 24px;background:#fbfcfe;border-top:1px solid #edf0f4;display:flex;justify-content:flex-end;gap:12px}
+.account-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.account-type-option{border:2px solid #dfe4ec;border-radius:12px;padding:14px;cursor:pointer;background:#fff;transition:border-color .15s,background-color .15s;display:flex;flex-direction:column;gap:5px;text-align:left}
+.account-type-option:hover{border-color:#9fc0ff}
+.account-type-option.selected{border-color:#2457d6;background:#f4f8ff}
+.account-type-option strong{font-size:.9rem;color:#172033}
+.account-type-option small{font-size:.74rem;color:#667085;line-height:1.35}
+@keyframes modalFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalScale{from{transform:scale(0.96);opacity:0}to{transform:scale(1);opacity:1}}
