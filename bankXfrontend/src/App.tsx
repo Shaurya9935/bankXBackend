@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 import { accountApi, apiError, customerApi, transactionApi } from "./api";
 import { useAuth } from "./auth";
+import RegisterPage from "./pages/Register/RegisterPage";
+import LoginPage from "./pages/Login/LoginPage";
 import type { Account, Transaction } from "./types";
 
 const money = (value: string | number) =>
@@ -703,6 +705,22 @@ function Profile() {
 }
 
 function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading-screen">Loading BankX...</div>;
+  }
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
   return (
     <Shell>
       <Routes>
@@ -713,6 +731,8 @@ function App() {
         <Route path="/withdraw" element={<MoneyOperation type="withdraw" />} />
         <Route path="/transfer" element={<MoneyOperation type="transfer" />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/register" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Shell>
