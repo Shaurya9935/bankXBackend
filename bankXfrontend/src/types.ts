@@ -11,7 +11,7 @@ export interface Customer {
   phone: string;
   address: string | null;
   date_of_birth: string | null;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface User {

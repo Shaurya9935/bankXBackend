@@ -23,29 +23,48 @@ export default function RegisterPage() {
     dateOfBirth: "",
     address: "",
     password: "",
+    confirmPassword: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // If already authenticated, redirect to dashboard
+  // If already authenticated, redirect to the dashboard
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Special handling for phone: only digits, max 10
+    if (name === "phone") {
+      const sanitized = value.replace(/\D/g, "").slice(0, 10);
+      setFormData((prev) => ({ ...prev, phone: sanitized }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
     if (error) setError("");
   };
 
-  const validate = () => {
-    const { fullName, email, phone, dateOfBirth, password } = formData;
+  /**
+   * Client-side validation matching backend constraints:
+   * 1. fullName: /^[a-zA-Z][a-zA-Z\s.'-]{1,98}[a-zA-Z]$/
+   * 2. email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+   * 3. phone: /^[6-9]\d{9}$/
+   * 4. dateOfBirth: /^\d{4}-\d{2}-\d{2}$/
+   * 5. password: >= 8 characters
+   * 6. confirmPassword: must match password
+   */
+  const validateForm = () => {
+    const { fullName, email, phone, dateOfBirth, password, confirmPassword } = formData;
 
     const nameRegex = /^[a-zA-Z][a-zA-Z\s.'-]{1,98}[a-zA-Z]$/;
     if (!fullName || !nameRegex.test(fullName.trim())) {
-      return "Please enter a valid full name (letters, spaces, 2-100 characters).";
+      return "Please provide a valid full name (2–100 characters, letters only).";
     }
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -55,16 +74,20 @@ export default function RegisterPage() {
 
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phone || !phoneRegex.test(phone.trim())) {
-      return "Please provide a valid 10-digit mobile number starting with 6, 7, 8, or 9.";
+      return "Please provide a valid 10-digit phone number starting with 6, 7, 8, or 9.";
     }
 
     const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateOfBirth || !dobRegex.test(dateOfBirth)) {
-      return "Please select your date of birth in YYYY-MM-DD format.";
+      return "Please provide date of birth in YYYY-MM-DD format.";
     }
 
     if (!password || password.length < 8) {
       return "Password must be at least 8 characters long.";
+    }
+
+    if (password !== confirmPassword) {
+      return "Passwords do not match. Please re-enter to confirm.";
     }
 
     return null;
@@ -74,7 +97,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
-    const validationError = validate();
+    const validationError = validateForm();
     if (validationError) {
       setError(validationError);
       return;
@@ -82,17 +105,24 @@ export default function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await register({
+      // Build backend-compatible payload
+      const payload = {
         fullName: formData.fullName.trim(),
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
         dateOfBirth: formData.dateOfBirth,
-        address: formData.address.trim(),
         password: formData.password,
-      });
+      };
+
+      if (formData.address.trim()) {
+        payload.address = formData.address.trim();
+      }
+
+      await register(payload);
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.message || "Failed to create account. Please check your information.");
+      // Backend operational errors (e.g., "Email already exists", "Phone number already exists")
+      setError(err?.message || "Registration failed. Please check your details and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +191,7 @@ export default function RegisterPage() {
               id="register-fullName"
               name="fullName"
               type="text"
-              placeholder="e.g. Sarah Jenkins"
+              placeholder="e.g. Rahul Sharma"
               value={formData.fullName}
               onChange={handleChange}
               autoComplete="name"
@@ -176,7 +206,7 @@ export default function RegisterPage() {
               id="register-email"
               name="email"
               type="email"
-              placeholder="e.g. sarah@example.com"
+              placeholder="e.g. rahul@example.com"
               value={formData.email}
               onChange={handleChange}
               autoComplete="email"
@@ -198,7 +228,7 @@ export default function RegisterPage() {
                 id="register-phone"
                 name="phone"
                 type="tel"
-                placeholder="10-digit (e.g. 9876543210)"
+                placeholder="10 digits (e.g. 9876543210)"
                 maxLength={10}
                 value={formData.phone}
                 onChange={handleChange}
@@ -216,12 +246,13 @@ export default function RegisterPage() {
                 max={new Date().toISOString().split("T")[0]}
                 value={formData.dateOfBirth}
                 onChange={handleChange}
+                autoComplete="bday"
                 required
               />
             </label>
           </div>
 
-          {/* Residential Address */}
+          {/* Residential Address (Optional) */}
           <label className="field-label" htmlFor="register-address">
             <span>
               Residential address{" "}
@@ -231,36 +262,68 @@ export default function RegisterPage() {
               id="register-address"
               name="address"
               type="text"
-              placeholder="e.g. 42 Wallaby Way, Suite 100"
+              placeholder="e.g. Civil Lines, Kanpur"
+              maxLength={255}
               value={formData.address}
               onChange={handleChange}
               autoComplete="street-address"
             />
           </label>
 
-          {/* Password */}
-          <label className="field-label" htmlFor="register-password">
-            Password
-            <div className="password-field">
-              <input
-                id="register-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="At least 8 characters"
-                value={formData.password}
-                onChange={handleChange}
-                autoComplete="new-password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </label>
+          {/* Password & Confirm Password Row */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "14px",
+            }}
+          >
+            <label className="field-label" htmlFor="register-password">
+              Password
+              <div className="password-field">
+                <input
+                  id="register-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 8 characters"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </label>
+
+            <label className="field-label" htmlFor="register-confirmPassword">
+              Confirm password
+              <div className="password-field">
+                <input
+                  id="register-confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </label>
+          </div>
 
           {/* Submit Button */}
           <button
@@ -271,7 +334,7 @@ export default function RegisterPage() {
           >
             {submitting ? (
               <>
-                <Loader2 size={16} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
                 <span>Creating account...</span>
               </>
             ) : (
@@ -291,4 +354,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
