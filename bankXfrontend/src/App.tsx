@@ -92,6 +92,10 @@ function Shell({ children }: { children: ReactNode }) {
             <WalletCards size={18} />
             Accounts
           </NavLink>
+          <NavLink to="/transfer" onClick={close}>
+            <ArrowLeftRight size={18} />
+            Transfer
+          </NavLink>
           <NavLink to="/transactions" onClick={close}>
             <Receipt size={18} />
             Transactions
@@ -184,9 +188,13 @@ function Dashboard() {
               <Plus size={17} />
               Create account
             </button>
+            <Link className="button" style={{ background: "#edf3ff", color: "#2457d6" }} to="/transfer">
+              <ArrowLeftRight size={17} />
+              Transfer
+            </Link>
             <Link className="button" style={{ background: "#edf3ff", color: "#2457d6" }} to="/deposit">
               <CircleDollarSign size={17} />
-              New transaction
+              Deposit
             </Link>
           </div>
         }
@@ -670,85 +678,138 @@ function MoneyOperation({
     amount: "",
     description: "",
   });
+  const [transferMode, setTransferMode] = useState<"external" | "internal">("external");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+
   useEffect(() => {
     void accountApi
       .list()
       .then((response) => {
         const data = response.data.data;
         setAccounts(data);
-        if (type === "deposit")
-          setForm((current) => ({
-            ...current,
-            to: String(data[0]?.account_id || ""),
-          }));
-        else
-          setForm((current) => ({
-            ...current,
-            from: String(data[0]?.account_id || ""),
-          }));
+        const activeAccounts = data.filter((a) => a.status === "ACTIVE");
+        if (activeAccounts.length > 0) {
+          if (type === "deposit") {
+            setForm((current) => ({
+              ...current,
+              to: current.to || String(activeAccounts[0].account_id),
+            }));
+          } else {
+            setForm((current) => ({
+              ...current,
+              from: current.from || String(activeAccounts[0].account_id),
+            }));
+          }
+        }
       })
       .catch((requestError) => setError(apiError(requestError)));
   }, [type]);
+
+  const sourceAccounts = accounts.filter(
+    (account) => account.status === "ACTIVE",
+  );
+  const selectedSourceAccount = accounts.find(
+    (a) => String(a.account_id) === String(form.from),
+  );
+
   const title = type.charAt(0).toUpperCase() + type.slice(1);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
     setSuccess("");
+
     const amount = Number(form.amount);
     if (
       !Number.isFinite(amount) ||
       amount <= 0 ||
       !/^\d+(\.\d{1,2})?$/.test(form.amount)
     ) {
-      setError("Enter a positive amount with up to two decimal places.");
+      setError("Please enter a positive amount with up to two decimal places.");
       return;
     }
-    if (type === "transfer" && form.from === form.to) {
-      setError("Source and destination accounts must differ.");
+
+    if (type !== "deposit") {
+      if (!form.from) {
+        setError("Please select a source account.");
+        return;
+      }
+      if (selectedSourceAccount && amount > Number(selectedSourceAccount.balance)) {
+        setError(
+          `Insufficient balance. Available in selected account: ${money(selectedSourceAccount.balance)}`,
+        );
+        return;
+      }
+    }
+
+    if (type === "transfer") {
+      if (!form.to.trim()) {
+        setError("Please enter or select a destination account.");
+        return;
+      }
+      if (
+        selectedSourceAccount &&
+        (form.to.trim() === String(selectedSourceAccount.account_id) ||
+          form.to.trim() === selectedSourceAccount.account_number)
+      ) {
+        setError("Source and destination accounts must be different.");
+        return;
+      }
+    }
+
+    if (type === "deposit" && !form.to) {
+      setError("Please select an account to deposit into.");
       return;
     }
-    if (!window.confirm(`Confirm ${type} of ${money(form.amount)}?`)) return;
+
     setBusy(true);
     try {
       const payload = {
         amount: form.amount,
-        description: form.description || undefined,
+        description: form.description ? form.description.trim() : undefined,
       };
-      if (type === "deposit")
+
+      if (type === "deposit") {
         await transactionApi.deposit({
           ...payload,
           to_account_id: Number(form.to),
         });
-      if (type === "withdraw")
+      } else if (type === "withdraw") {
         await transactionApi.withdraw({
           ...payload,
           from_account_id: Number(form.from),
         });
-      if (type === "transfer")
+      } else if (type === "transfer") {
         await transactionApi.transfer({
           ...payload,
           from_account_id: Number(form.from),
-          to_account_id: Number(form.to),
+          toAccountNumber: form.to.trim(),
+          to_account_id: form.to.trim(),
         });
+      }
+
+      // Reload accounts and recent transactions
       const [accountResponse] = await Promise.all([
         accountApi.list(),
         transactionApi.list(),
       ]);
       setAccounts(accountResponse.data.data);
-      setSuccess(`${title} completed successfully.`);
-      setForm((current) => ({ ...current, amount: "", description: "" }));
+      setSuccess(`${title} of ${money(amount)} completed successfully.`);
+      setForm((current) => ({
+        ...current,
+        amount: "",
+        description: "",
+        ...(type === "transfer" && transferMode === "external" ? { to: "" } : {}),
+      }));
     } catch (requestError) {
       setError(apiError(requestError));
     } finally {
       setBusy(false);
     }
   };
-  const sourceAccounts = accounts.filter(
-    (account) => account.status === "ACTIVE",
-  );
+
   return (
     <>
       <PageHeader
@@ -768,28 +829,111 @@ function MoneyOperation({
           </p>
           <form className="form" onSubmit={submit}>
             {type !== "deposit" && (
-              <Select
-                label="Source account"
-                value={form.from}
-                onChange={(value) => setForm({ ...form, from: value })}
-                options={sourceAccounts}
-                placeholder="Select source account"
-              />
+              <div>
+                <Select
+                  label="Source account"
+                  value={form.from}
+                  onChange={(value) => {
+                    setForm({ ...form, from: value });
+                    if (transferMode === "internal" && form.to === value) {
+                      const other = sourceAccounts.find((a) => String(a.account_id) !== value);
+                      setForm((c) => ({ ...c, from: value, to: String(other?.account_id || "") }));
+                    }
+                  }}
+                  options={sourceAccounts}
+                  placeholder="Select source account"
+                />
+                {selectedSourceAccount && (
+                  <small style={{ color: "#667085", display: "block", marginTop: "4px" }}>
+                    Available balance: <strong>{money(selectedSourceAccount.balance)}</strong>
+                  </small>
+                )}
+              </div>
             )}
-            {type !== "withdraw" && (
-              <Select
-                label={
-                  type === "transfer"
-                    ? "Destination account"
-                    : "Account to credit"
-                }
-                value={form.to}
-                onChange={(value) => setForm({ ...form, to: value })}
-                options={sourceAccounts}
-                placeholder="Select destination account"
-              />
+
+            {type === "transfer" ? (
+              <div>
+                {sourceAccounts.length > 1 && (
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                    <button
+                      type="button"
+                      className={`button small`}
+                      style={{
+                        padding: "5px 12px",
+                        fontSize: "0.78rem",
+                        borderRadius: "8px",
+                        border: 0,
+                        cursor: "pointer",
+                        background: transferMode === "external" ? "#2457d6" : "#edf0f5",
+                        color: transferMode === "external" ? "#fff" : "#475467",
+                      }}
+                      onClick={() => {
+                        setTransferMode("external");
+                        setForm((c) => ({ ...c, to: "" }));
+                      }}
+                    >
+                      Any BankX account
+                    </button>
+                    <button
+                      type="button"
+                      className={`button small`}
+                      style={{
+                        padding: "5px 12px",
+                        fontSize: "0.78rem",
+                        borderRadius: "8px",
+                        border: 0,
+                        cursor: "pointer",
+                        background: transferMode === "internal" ? "#2457d6" : "#edf0f5",
+                        color: transferMode === "internal" ? "#fff" : "#475467",
+                      }}
+                      onClick={() => {
+                        setTransferMode("internal");
+                        const other = sourceAccounts.find((a) => String(a.account_id) !== form.from);
+                        setForm((c) => ({ ...c, to: String(other?.account_id || "") }));
+                      }}
+                    >
+                      Between my accounts
+                    </button>
+                  </div>
+                )}
+
+                {transferMode === "internal" && sourceAccounts.length > 1 ? (
+                  <Select
+                    label="Destination account"
+                    value={form.to}
+                    onChange={(value) => setForm({ ...form, to: value })}
+                    options={sourceAccounts.filter((a) => String(a.account_id) !== form.from)}
+                    placeholder="Select destination account"
+                  />
+                ) : (
+                  <Field label="Recipient account number">
+                    <input
+                      value={form.to}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          to: event.target.value.replace(/\D/g, "").slice(0, 16),
+                        })
+                      }
+                      placeholder="12-digit account number (e.g. 100100001234)"
+                      required
+                    />
+                  </Field>
+                )}
+              </div>
+            ) : (
+              type === "deposit" && (
+                <Select
+                  label="Account to credit"
+                  value={form.to}
+                  onChange={(value) => setForm({ ...form, to: value })}
+                  options={sourceAccounts}
+                  placeholder="Select account to credit"
+                />
+              )
             )}
-            <Field label="Amount">
+
+            <Field label="Amount (₹)">
               <input
                 inputMode="decimal"
                 value={form.amount}
@@ -800,6 +944,7 @@ function MoneyOperation({
                 required
               />
             </Field>
+
             <Field label="Description (optional)">
               <input
                 value={form.description}
@@ -807,9 +952,10 @@ function MoneyOperation({
                   setForm({ ...form, description: event.target.value })
                 }
                 maxLength={255}
-                placeholder="What is this for?"
+                placeholder={type === "transfer" ? "e.g. Rent payment, Transfer to friend" : "What is this for?"}
               />
             </Field>
+
             {error && <Alert>{error}</Alert>}
             {success && (
               <div className="alert success">
@@ -817,12 +963,23 @@ function MoneyOperation({
                 {success}
               </div>
             )}
+
             <button
+              type="submit"
               className="button primary wide"
-              disabled={busy || !accounts.length}
+              disabled={busy || !sourceAccounts.length}
             >
-              {busy ? "Submitting..." : `Review ${type}`}
-              <ChevronRight size={17} />
+              {busy ? (
+                <>
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+                  <span>Processing {type}...</span>
+                </>
+              ) : (
+                <>
+                  <span>Send {type}</span>
+                  <ChevronRight size={17} />
+                </>
+              )}
             </button>
           </form>
         </section>
@@ -830,12 +987,13 @@ function MoneyOperation({
           <ShieldCheck size={24} color="#2457d6" />
           <h3>Secure transaction flow</h3>
           <p>
-            Account selection and amount are sent to the backend. A successful
-            response is required before the UI reports completion.
+            {type === "transfer"
+              ? "Transfers execute atomically in a single MySQL transaction. Funds are deducted from the sender and credited to the recipient simultaneously."
+              : "Account selection and balance verification are performed with ACID compliance before confirming the result."}
           </p>
           <div className="aside-rule" />
           <span className="muted small">
-            Never share your password or token.
+            Protected with JWT session authentication.
           </span>
         </aside>
       </div>
@@ -1142,7 +1300,22 @@ function AccountCard({ account }: { account: Account }) {
       </span>
       <div className="card-foot">
         <span>Opened {shortDate(account.created_at)}</span>
-        <span>#{account.account_id}</span>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Link
+            to="/transfer"
+            style={{
+              color: "#2457d6",
+              fontWeight: 700,
+              fontSize: "0.75rem",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "3px",
+            }}
+          >
+            Transfer <ArrowLeftRight size={12} />
+          </Link>
+          <span>#{account.account_id}</span>
+        </div>
       </div>
     </article>
   );

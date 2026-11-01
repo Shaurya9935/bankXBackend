@@ -52,7 +52,22 @@ export const accountApi = {
 
 export const transactionApi = {
   list: () => api.get<ApiResponse<Transaction[]>>("/transactions"),
-  deposit: (payload: { to_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/deposit", payload),
-  withdraw: (payload: { from_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/withdraw", payload),
-  transfer: (payload: { from_account_id: number; to_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/transfer", payload)
+  deposit: (payload: { to_account_id: number | string; amount: string | number; description?: string }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/deposit", payload),
+  withdraw: (payload: { from_account_id: number | string; amount: string | number; description?: string }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/withdraw", payload),
+  transfer: (payload: {
+    from_account_id: number | string;
+    to_account_id?: number | string;
+    toAccountNumber?: string;
+    amount: string | number;
+    description?: string;
+  }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/transfer", {
+      from_account_id: payload.from_account_id,
+      to_account_id: payload.to_account_id,
+      toAccountNumber: payload.toAccountNumber || (payload.to_account_id ? String(payload.to_account_id) : undefined),
+      amount: payload.amount,
+      description: payload.description,
+    })
 };
