@@ -2,7 +2,7 @@ import axios from "axios";
 import type { Account, ApiResponse, AuthData, Customer, Transaction } from "./types";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api",
   headers: { "Content-Type": "application/json" }
 });
 
@@ -38,13 +38,36 @@ export const customerApi = {
 
 export const accountApi = {
   list: () => api.get<ApiResponse<Account[]>>("/accounts"),
-  get: (id: number) => api.get<ApiResponse<Account>>(`/accounts/${id}`),
-  create: (account_type: Account["account_type"]) => api.post<ApiResponse<Account>>("/accounts", { account_type })
+  get: (id: number | string) => api.get<ApiResponse<Account>>(`/accounts/${id}`),
+  create: (payload: Account["account_type"] | { account_type?: Account["account_type"]; branch_id?: number } = "SAVINGS") => {
+    const body = typeof payload === "string" ? { account_type: payload } : payload;
+    return api.post<ApiResponse<Account>>("/accounts", body);
+  },
+  deposit: (accountId: number | string, amount: number | string, description?: string) =>
+    api.post<ApiResponse<Transaction>>(`/accounts/${accountId}/deposit`, {
+      amount: Number(amount),
+      description: description || "Initial opening deposit"
+    })
 };
 
 export const transactionApi = {
   list: () => api.get<ApiResponse<Transaction[]>>("/transactions"),
-  deposit: (payload: { to_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/deposit", payload),
-  withdraw: (payload: { from_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/withdraw", payload),
-  transfer: (payload: { from_account_id: number; to_account_id: number; amount: string; description?: string }) => api.post<ApiResponse<Transaction>>("/transactions/transfer", payload)
+  deposit: (payload: { to_account_id: number | string; amount: string | number; description?: string }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/deposit", payload),
+  withdraw: (payload: { from_account_id: number | string; amount: string | number; description?: string }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/withdraw", payload),
+  transfer: (payload: {
+    from_account_id: number | string;
+    to_account_id?: number | string;
+    toAccountNumber?: string;
+    amount: string | number;
+    description?: string;
+  }) =>
+    api.post<ApiResponse<Transaction>>("/transactions/transfer", {
+      from_account_id: payload.from_account_id,
+      to_account_id: payload.to_account_id,
+      toAccountNumber: payload.toAccountNumber || (payload.to_account_id ? String(payload.to_account_id) : undefined),
+      amount: payload.amount,
+      description: payload.description,
+    })
 };

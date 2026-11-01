@@ -8,6 +8,7 @@ interface AuthContextValue {
   loading: boolean;
   error: string;
   login: (email: string, password: string) => Promise<void>;
+  register: (payload: Record<string, string>) => Promise<void>;
   logout: () => void;
 }
 
@@ -61,7 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const value = useMemo(() => ({ user, customer, loading, error, login, logout }), [user, customer, loading, error]);
+  const register = async (payload: Record<string, string>) => {
+    setError("");
+    try {
+      const { data } = await authApi.register(payload);
+      localStorage.setItem("bankx_token", data.data.token);
+      setUser(data.data.user);
+      setCustomer(data.data.customer);
+    } catch (requestError) {
+      const message = apiError(requestError);
+      setError(message);
+      throw new Error(message);
+    }
+  };
+
+  const value = useMemo(
+    () => ({ user, customer, loading, error, login, register, logout }),
+    [user, customer, loading, error]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
