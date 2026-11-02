@@ -43,6 +43,11 @@ bankXbackend/
         │   ├── customer.repository.js
         │   ├── customer.routes.js
         │   └── customer.service.js
+        ├── employee/            # Staff directory, roles, and branch assignments
+        │   ├── employee.controller.js
+        │   ├── employee.repository.js
+        │   ├── employee.routes.js
+        │   └── employee.service.js
         └── transaction/         # Money operations (deposit, withdraw, transfer) and history
             ├── transaction.controller.js
             ├── transaction.repository.js
@@ -228,6 +233,40 @@ Content-Type: application/json
   - Recipient account must exist, be `ACTIVE`, and cannot be the sender account.
   - Sender balance must be $\ge$ transfer amount.
   - Changes are committed atomically in MySQL.
+
+---
+
+### 4.5 Employee Module (`/api/employees`)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/employees` | Create/onboard a new employee | Bearer |
+| `GET` | `/api/employees` | List all employees (with filters, search & pagination) | Bearer |
+| `GET` | `/api/employees/:employeeId` | Fetch employee by ID | Bearer |
+| `PATCH` | `/api/employees/:employeeId` | Update employee information | Bearer |
+| `DELETE` | `/api/employees/:employeeId` | Remove employee record | Bearer |
+
+#### `POST /api/employees`
+* **Body**:
+  ```json
+  {
+    "fullName": "Vikram Verma",
+    "email": "vikram.verma@bankx.com",
+    "phone": "9812345678",
+    "designation": "MANAGER",
+    "salary": 75000.00,
+    "joiningDate": "2024-01-15",
+    "branchId": 1
+  }
+  ```
+* **Supported Designations**: `MANAGER`, `TELLER`, `ACCOUNTANT`, `SUPPORT`
+* **Supported Statuses**: `ACTIVE`, `INACTIVE`
+* **Query Parameters (`GET /api/employees`)**:
+  - `branch_id`: filter by branch ID
+  - `designation`: filter by designation
+  - `status`: filter by status
+  - `search`: search by name, email, or phone
+  - `page`: page number (default 1)
+  - `limit`: page size (default 20, max 100)
 
 ---
 
